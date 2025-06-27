@@ -794,7 +794,7 @@ def process_batch(file_paths: List[str]) -> Optional[pd.DataFrame]:
                         'name': [c.name for c in rag_system.chunks],
                         'type': [c.chunk_type for c in rag_system.chunks],
                         'complexity': [c.complexity_score for c in rag_system.chunks]
-                        'content': [c.content for c in rag_system.chunks] # Added content for hover
+                        ,'content': [c.content for c in rag_system.chunks] # Added content for hover
                     })
                     
                     fig = px.scatter(
