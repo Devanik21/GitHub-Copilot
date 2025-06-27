@@ -359,6 +359,11 @@ class CodeLinter:
             os.remove(tmp_file_path) # Clean up temporary file
 
             if result.stdout:
+                # Check for the specific problematic output pattern
+                if result.stdout.strip().startswith("json json"):
+                    st.error(f"Flake8 produced unexpected output: '{result.stdout.strip()}'. This often indicates a problem with your flake8 installation or environment. Please ensure flake8 is correctly installed and accessible in your PATH. Stderr: {result.stderr}")
+                    return []
+
                 # flake8 outputs a JSON object where keys are filenames
                 # We only lint one file, so we expect one key
                 lint_output = json.loads(result.stdout)
