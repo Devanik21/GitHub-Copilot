@@ -19,7 +19,7 @@ import time
 # Configure page
 st.set_page_config(
     page_title="RAG Code Analysis System",
-    page_icon="🤖",
+    page_icon="🦄",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -298,7 +298,7 @@ def get_rag_system():
     return CodeRAGSystem()
 
 def main():
-    st.title("🤖 RAG Code Analysis System")
+    st.title("🦄 RAG Code Analysis System")
     st.markdown("**Advanced Code Understanding with Retrieval-Augmented Generation**")
     
     # Sidebar configuration
