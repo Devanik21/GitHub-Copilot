@@ -609,7 +609,7 @@ def main():
     rag_system = CodeRAGSystem(api_key=api_key)
     
     # Main interface tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Code Input", "🔍 Search & Retrieval", "📊 Code Analytics", "🛠️ Code Review & Assist", "🎯 System Demo"]) # Added tab4, renamed tab4 to tab5
+    tab1, tab2, tab3, tab4, tab5,tab6 = st.tabs(["📝 Code Input", "🔍 Search & Retrieval", "📊 Code Analytics", "🛠️ Code Review & Assist", "🎯 System Demo","🧠 LLM Workflow"]) # Added tab4, renamed tab4 to tab5
     
     with tab1:
         st.header("Code Parsing and Chunking")
@@ -985,6 +985,52 @@ def process_batch(file_paths: List[str]) -> Optional[pd.DataFrame]:
                 st.metric("Vector DB Size", len(rag_system.vector_db.chunks))
             with col4: # New metric
                 st.metric("Linting Issues", len(rag_system.linting_results))
+
+    with tab6:
+        st.header("🧠 LLM Workflow")
+        st.markdown("""
+        This section explains how Large Language Models (LLMs) are integrated into the RAG Code Analysis System.
+
+        **Workflow Steps:**
+        1. **Code Parsing:** Your code is parsed into logical chunks (functions, classes, etc.) using AST and tokenization.
+        2. **Embedding Generation:** Each chunk is converted into a semantic vector using a transformer model.
+        3. **Vector Storage:** Embeddings are stored in a FAISS vector database for efficient similarity search.
+        4. **Semantic Search:** Natural language queries are embedded and matched against code chunks for retrieval.
+        5. **LLM-Powered Tasks:**
+            - **Refactoring Suggestions:** If a Gemini API key is provided, the LLM reviews code chunks and suggests improvements.
+            - **Code Generation:** The LLM generates code snippets based on user prompts.
+        6. **Static Analysis:** Linting is performed for code quality, independent of LLMs.
+        7. **Visualization & Insights:** Complexity, clustering, and code patterns are visualized for deeper understanding.
+
+        ---
+        """)
+        st.subheader("LLM Integration Points")
+        st.markdown("""
+        - **Refactoring Suggestions:** Uses Gemini LLM to analyze code chunks and provide actionable feedback.
+        - **Code Generation:** Uses Gemini LLM to generate Python code from natural language prompts.
+        - **Fallback:** If no API key is provided, rule-based or simulated responses are used.
+
+        **Note:**  
+        - LLM features require a valid Gemini API key (set in the sidebar).
+        - All LLM calls are stateless and do not store your code or prompts.
+        """)
+        st.subheader("Example LLM Prompt")
+        st.code(
+            '''You are an expert code reviewer. Analyze the following Python code chunk and provide a concise refactoring suggestion.
+
+Code Chunk Name: {chunk.name}
+Type: {chunk.chunk_type}
+Complexity Score: {chunk.complexity_score:.1f}
+Lines: {chunk.end_line - chunk.start_line + 1}
+
+```python
+{chunk.content}
+```
+
+Suggestion:''',
+            language="markdown"
+        )
+        st.info("This prompt is sent to the Gemini LLM for each code chunk when generating refactoring suggestions.")
 
 if __name__ == "__main__":
     main()
