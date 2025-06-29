@@ -860,18 +860,6 @@ class ComprehensiveRAGSystem:
 
 def main():
     st.markdown('<div class="main-header"><h1>🧠 Advanced RAG Code Intelligence System</h1></div>', unsafe_allow_html=True)
-    
-    EXAMPLE_CODE = '''
-def add(a, b):
-    """Add two numbers."""
-    return a + b
-
-class Calculator:
-    def multiply(self, x, y):
-        # Multiplies two numbers
-        return x * y
-'''
-
     st.sidebar.header("Upload & Settings")
 
     uploaded_file = st.sidebar.file_uploader("Upload Python file", type=["py"])
@@ -895,7 +883,16 @@ class Calculator:
                 code = uploaded_file.read().decode("utf-8")
                 file_path = uploaded_file.name
             else:
-                code = EXAMPLE_CODE
+                code = '''
+def add(a, b):
+    """Add two numbers."""
+    return a + b
+
+class Calculator:
+    def multiply(self, x, y):
+        # Multiplies two numbers
+        return x * y
+                '''
                 file_path = "example.py"
 
             rag = ComprehensiveRAGSystem()
@@ -968,7 +965,16 @@ class Calculator:
                 code = uploaded_file.read().decode("utf-8")
                 file_path = uploaded_file.name
             else:
-                code = EXAMPLE_CODE
+                code = '''
+def add(a, b):
+    """Add two numbers."""
+    return a + b
+
+class Calculator:
+    def multiply(self, x, y):
+        # Multiplies two numbers
+        return x * y
+                '''
                 file_path = "example.py"
             analysis = rag.process_code(code, file_path)
             if "error" in analysis:
@@ -1073,7 +1079,16 @@ class Calculator:
                 code = uploaded_file.read().decode("utf-8")
                 file_path = uploaded_file.name
             else:
-                code = EXAMPLE_CODE
+                code = '''
+def add(a, b):
+    """Add two numbers."""
+    return a + b
+
+class Calculator:
+    def multiply(self, x, y):
+        # Multiplies two numbers
+        return x * y
+                '''
                 file_path = "example.py"
             analysis = rag.process_code(code, file_path)
             if "basic_stats" in analysis:
