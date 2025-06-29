@@ -1090,7 +1090,7 @@ class Calculator:
                         "Complexity": complexities
                     })
                     fig = px.density_heatmap(
-                        heatmap_df, x="Chunk", y="Complexity", nbinsy=10, color_continuous_scale="Viridis"
+                        heatmap_df, x="Chunk", y="Complexity", nbinsy=10, color_continuous_scale="Viridis",title="Density heatmap analysis"
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
