@@ -1003,7 +1003,7 @@ class Calculator:
                     clusters = pd.DataFrame(analysis["semantic_clustering"]["clusters"])
                     fig = px.scatter(
                         clusters, x="x", y="y", color="cluster", hover_data=["name", "type"],
-                        title="Semantic Clusters of Code Chunks(AI)"
+                        title="Semantic Clusters of Code Chunks"
                     )
                     st.plotly_chart(fig, use_container_width=True)
         else:
@@ -1091,14 +1091,17 @@ class Calculator:
                 '''
                 file_path = "example.py"
             analysis = rag.process_code(code, file_path)
-            st.subheader("Current Session Statistics")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Processed Chunks", analysis["basic_stats"]["total_chunks"])
-            with col2:
-                st.metric("Functions", analysis["basic_stats"]["functions_count"])
-            with col3:
-                st.metric("Classes", analysis["basic_stats"]["classes_count"])
+            if "basic_stats" in analysis:
+                st.subheader("Current Session Statistics")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Processed Chunks", analysis["basic_stats"]["total_chunks"])
+                with col2:
+                    st.metric("Functions", analysis["basic_stats"]["functions_count"])
+                with col3:
+                    st.metric("Classes", analysis["basic_stats"]["classes_count"])
+            elif "error" in analysis:
+                st.error(analysis["error"])
 
     with tab4:
         st.header("⚙️ How It Works: A Deep Dive into the RAG System")
