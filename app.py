@@ -1247,6 +1247,8 @@ class Calculator:
         st.markdown("""
         This tab provides a **super comprehensive, step-by-step explanation** of the technologies and processes used in this application.  
         Use this as a guide to understand how we turn raw code into a searchable, analyzable knowledge base.
+
+        ---
         """)
 
         with st.expander("🔎 **Overview: What is a RAG Code Intelligence System?**", expanded=True):
@@ -1264,6 +1266,18 @@ class Calculator:
             3. Indexing & Storage
             4. Retrieval & Search
             5. Analytics & Insights
+
+            ---
+            **Why RAG for Code?**
+            - **Bridges the gap** between static code analysis and semantic understanding.
+            - Enables **natural language search** and contextual recommendations.
+            - Scales to large codebases and supports continuous integration workflows.
+
+            **Real-World Use Cases:**
+            - Code review automation and quality gates.
+            - Onboarding new developers with codebase exploration.
+            - Refactoring and technical debt identification.
+            - AI-powered documentation and code summarization.
             """)
 
         with st.expander("1️⃣ Parsing & Chunking - Understanding Code Structure", expanded=False):
@@ -1279,6 +1293,12 @@ class Calculator:
                 - Import statements
                 - Module-level variables and constants
             - Each chunk is annotated with rich metadata: name, type, start/end lines, complexity, comments, etc.
+
+            **Advanced Details:**
+            - **Handles nested structures:** Methods inside classes, inner functions, and async functions.
+            - **Tracks relationships:** Builds call graphs, import graphs, and inheritance hierarchies.
+            - **Extracts quality metrics:** Cyclomatic complexity, maintainability index, comment ratio, and more.
+            - **Supports extensibility:** Can be adapted for other languages or custom code patterns.
 
             **Why is this important?**
             - **Precision:** Extracts semantically complete units, not just lines or blocks.
@@ -1305,6 +1325,9 @@ class Calculator:
                 - Each node represents a construct (function, class, assignment, etc.).
                 - AST parsing is robust to formatting, whitespace, and comments.
                 - Enables static analysis, code transformation, and deep inspection.
+
+                **Technical Note:**  
+                ASTs are the foundation for many tools: linters, formatters, refactoring engines, and even compilers.
                 """)
 
             with st.expander("🧮 Metrics Extracted at this Stage"):
@@ -1313,6 +1336,14 @@ class Calculator:
                 - **Comment Ratio**: Fraction of lines that are comments.
                 - **Maintainability Index**: Composite score based on complexity, comments, and length.
                 - **Chunk Type Distribution**: Counts of functions, classes, imports, etc.
+                - **Call Graphs**: Maps which functions/methods call each other.
+                - **Inheritance Graphs**: Shows class inheritance relationships.
+                """)
+
+            with st.expander("💡 Real-World Example"):
+                st.markdown("""
+                - **Detecting dead code:** By analyzing call graphs, unused functions can be flagged.
+                - **API surface extraction:** Quickly list all public classes and methods for documentation.
                 """)
 
         with st.expander("2️⃣ Embedding - Turning Code into Semantic Vectors", expanded=False):
@@ -1325,6 +1356,12 @@ class Calculator:
             - Each chunk is enriched with metadata (type, name, parameters, decorators, docstring).
             - The model encodes this text into a vector (typically 384 dimensions).
             - Embeddings are cached and generated in batches for efficiency.
+
+            **Advanced Details:**
+            - **Metadata fusion:** Embedding input includes not just code, but also type, name, parameters, and docstring for richer context.
+            - **Batch processing:** Improves throughput and leverages model parallelism.
+            - **Hash-based caching:** Avoids redundant computation for identical chunks.
+            - **Supports model swapping:** Can use larger or domain-specific models for higher accuracy.
 
             **Why is this important?**
             - **Semantic Understanding:** Similar code (by meaning, not just words) gets similar vectors.
@@ -1344,12 +1381,23 @@ class Calculator:
                 - A **transformer** is a neural network architecture designed for understanding sequences (text, code).
                 - **Embeddings** are dense vector representations capturing meaning and context.
                 - Pre-trained models can generalize to new code and queries.
+
+                **Technical Note:**  
+                Transformers use self-attention to model relationships between all tokens, making them ideal for code, which often has long-range dependencies.
                 """)
 
             with st.expander("⚡ Performance Tips"):
                 st.markdown("""
                 - Embeddings are cached using a hash of the chunk text.
                 - Batch processing (32 chunks at a time) speeds up embedding generation.
+                - For very large codebases, embeddings can be precomputed and stored offline.
+                """)
+
+            with st.expander("🔍 Use Cases"):
+                st.markdown("""
+                - **Semantic code search:** Find code by intent, not just keywords.
+                - **Duplicate detection:** Identify similar or copy-pasted code across repositories.
+                - **Automated documentation:** Retrieve relevant code snippets for doc generation.
                 """)
 
         with st.expander("3️⃣ Indexing & Storage - Creating a Searchable Code Library", expanded=False):
@@ -1365,6 +1413,11 @@ class Calculator:
                 - `IndexPQ`: Quantized, for large datasets
                 - (Optionally) HNSW for approximate search
             - All code chunks and their embeddings are stored for retrieval.
+
+            **Advanced Details:**
+            - **Hybrid indexing:** Switches between exact and approximate search based on dataset size.
+            - **Search statistics:** Tracks query frequency, average search time, and popular queries.
+            - **Chunk metadata storage:** Each embedding is linked to its code chunk and metadata for rich result display.
 
             **Why is this important?**
             - **Speed:** Finds nearest neighbors in milliseconds, even for thousands of chunks.
@@ -1385,6 +1438,17 @@ class Calculator:
                 - **FAISS** is a library for efficient similarity search and clustering of dense vectors.
                 - Used by leading AI search and recommendation systems.
                 - Supports CPU and GPU acceleration.
+                - Can handle millions of vectors with sub-second latency.
+
+                **Technical Note:**  
+                FAISS supports advanced indexing structures (IVF, PQ, HNSW) for balancing speed, memory, and accuracy.
+                """)
+
+            with st.expander("🔍 Use Cases"):
+                st.markdown("""
+                - **Instant code search:** Developers can find relevant code in real time.
+                - **Similarity-based recommendations:** Suggest related functions or classes.
+                - **Code deduplication:** Identify and merge similar code fragments.
                 """)
 
         with st.expander("4️⃣ Retrieval & Search - Finding Relevant Code", expanded=False):
@@ -1398,6 +1462,12 @@ class Calculator:
             3. The embedding is searched against the FAISS index.
             4. Top-k most similar code chunks are returned, ranked by similarity.
             5. Results can be filtered by type, complexity, or quality.
+
+            **Advanced Details:**
+            - **Multi-modal queries:** Supports both code and natural language as input.
+            - **Filtering and ranking:** Results can be filtered by chunk type, complexity, maintainability, or custom tags.
+            - **Contextual expansion:** Can retrieve related chunks (e.g., methods in the same class, or functions called by the result).
+            - **Search analytics:** Tracks query patterns to improve relevance over time.
 
             **Why is this important?**
             - **Semantic Search:** Finds code by meaning, not just keywords.
@@ -1420,6 +1490,15 @@ class Calculator:
                 - Each result includes:
                     - Name, type, similarity score
                     - Complexity, maintainability, parameters, decorators
+
+                **Technical Note:**  
+                Ranking can be further improved by combining semantic similarity with static code metrics or usage frequency.
+                """)
+
+            with st.expander("💡 Real-World Example"):
+                st.markdown("""
+                - **Find all data cleaning functions:** Query "clean missing values" and retrieve relevant utilities.
+                - **Locate async handlers:** Filter results to only show async functions.
                 """)
 
         with st.expander("5️⃣ Analytics & Insights - Understanding the Codebase", expanded=False):
@@ -1433,6 +1512,12 @@ class Calculator:
             - **Complexity & Quality Metrics:** Calculates averages, distributions, and highlights outliers.
             - **Dependency Analysis:** Extracts call graphs, import graphs, and inheritance relationships.
             - **Recommendations:** Suggests improvements based on analysis (e.g., refactor complex code, add comments).
+
+            **Advanced Details:**
+            - **Semantic clustering:** Reveals hidden structure and architectural patterns in code.
+            - **Hotspot detection:** Identifies complex or low-quality areas for targeted refactoring.
+            - **Dependency visualization:** Graphs show how code components interact, aiding modularization.
+            - **Continuous improvement:** Analytics can be tracked over time for CI/CD integration.
 
             **Why is this important?**
             - **Bird's-Eye View:** See structure, hotspots, and patterns at a glance.
@@ -1456,6 +1541,7 @@ class Calculator:
                 - **Complexity Heatmap:** Visualizes complexity per chunk.
                 - **Semantic Clustering:** 2D scatter plot of code clusters.
                 - **Call Graph:** Network diagram of function/method calls.
+                - **Inheritance Graph:** Shows class hierarchies and relationships.
                 """)
 
             with st.expander("💡 Example Recommendations"):
@@ -1464,6 +1550,14 @@ class Calculator:
                 - "Refactor highly complex functions/classes to reduce cyclomatic complexity."
                 - "Consider using classes for better code organization and reusability."
                 - "Review import statements for possible redundancy or unused imports."
+                - "Modularize tightly coupled code to improve testability and reuse."
+                """)
+
+            with st.expander("🔬 Advanced: Integrating with DevOps"):
+                st.markdown("""
+                - **CI/CD integration:** Run analytics on every pull request to enforce quality gates.
+                - **Trend analysis:** Track maintainability and complexity over time.
+                - **Automated alerts:** Notify teams when code quality drops below thresholds.
                 """)
 
         with st.expander("🧩 Putting It All Together", expanded=False):
@@ -1481,6 +1575,12 @@ class Calculator:
             - Understand the structure, complexity, and quality of large codebases.
             - Discover architectural patterns, dependencies, and potential areas for improvement.
             - Make data-driven decisions about refactoring, documentation, and code organization.
+
+            ---
+            **Design Philosophy:**
+            - **Extensible:** Easily add support for new languages, metrics, or models.
+            - **Scalable:** Handles everything from small scripts to monolithic codebases.
+            - **Actionable:** Turns raw code into insights and recommendations.
 
             **This approach represents the future of intelligent code analysis and search.**
             """)
