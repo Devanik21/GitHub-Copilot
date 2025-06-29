@@ -997,7 +997,7 @@ class Calculator:
                     clusters = pd.DataFrame(analysis["semantic_clustering"]["clusters"])
                     fig = px.scatter(
                         clusters, x="x", y="y", color="cluster", hover_data=["name", "type"],
-                        title="Semantic Clusters of Code Chunks"
+                        title="Semantic Clusters of Code Chunks (analysis)"
                     )
                     st.plotly_chart(fig, use_container_width=True)
         else:
