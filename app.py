@@ -21,6 +21,7 @@ import time
 import hashlib
 from collections import Counter, defaultdict
 import warnings
+import networkx as nx  # Add for call graph visualization
 warnings.filterwarnings('ignore')
 
 # Configure page with enhanced metadata
@@ -879,6 +880,7 @@ class Calculator:
     search_query = st.sidebar.text_input("Semantic Search Query", "")
     k_results = st.sidebar.slider("Top-K Results", 1, 10, 5)
     show_analytics = st.sidebar.checkbox("Show Analytics", value=True)
+    show_call_graph = st.sidebar.checkbox("Show Call Graph", value=False)  # Advanced feature
 
     # --- Add main tabs for new features ---
     tab1, tab2, tab3, tab4 = st.tabs([
@@ -925,6 +927,20 @@ class Calculator:
                 complexity_dist = analysis["complexity_analysis"]["distribution"]
                 st.bar_chart(pd.DataFrame.from_dict(complexity_dist, orient="index", columns=["Count"]))
 
+                # --- Advanced Feature: Complexity Heatmap ---
+                st.markdown("#### Code Complexity Heatmap")
+                chunk_names = [c.name for c in rag.chunks]
+                complexities = [c.complexity_score for c in rag.chunks]
+                if chunk_names and complexities:
+                    heatmap_df = pd.DataFrame({
+                        "Chunk": chunk_names,
+                        "Complexity": complexities
+                    })
+                    fig = px.density_heatmap(
+                        heatmap_df, x="Chunk", y="Complexity", nbinsy=10, color_continuous_scale="Viridis"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
                 st.markdown("#### Quality Metrics")
                 st.json(analysis["quality_metrics"])
 
@@ -935,6 +951,16 @@ class Calculator:
                 for rec in analysis["recommendations"]:
                     st.info(rec)
 
+                # --- Advanced Feature: Download Analysis Report ---
+                st.markdown("#### Download Analysis Report")
+                report_json = json.dumps(analysis, indent=2, default=str)
+                st.download_button(
+                    label="Download JSON Report",
+                    data=report_json,
+                    file_name="code_analysis_report.json",
+                    mime="application/json"
+                )
+
                 if analysis["semantic_clustering"]:
                     st.markdown("#### Semantic Clustering (2D PCA)")
                     clusters = pd.DataFrame(analysis["semantic_clustering"]["clusters"])
@@ -944,18 +970,80 @@ class Calculator:
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
+                # --- Advanced Feature: Call Graph Visualization ---
+                if show_call_graph:
+                    st.markdown("#### Call Graph Visualization")
+                    call_graph = analysis["dependency_analysis"]["call_graph"]
+                    if call_graph:
+                        G = nx.DiGraph()
+                        for caller, callees in call_graph.items():
+                            for callee in callees:
+                                G.add_edge(caller, callee)
+                        pos = nx.spring_layout(G, k=0.5, iterations=20, seed=42)
+                        edge_x = []
+                        edge_y = []
+                        for edge in G.edges():
+                            x0, y0 = pos[edge[0]]
+                            x1, y1 = pos[edge[1]]
+                            edge_x += [x0, x1, None]
+                            edge_y += [y0, y1, None]
+                        edge_trace = go.Scatter(
+                            x=edge_x, y=edge_y,
+                            line=dict(width=1, color='#888'),
+                            hoverinfo='none',
+                            mode='lines'
+                        )
+                        node_x = []
+                        node_y = []
+                        node_text = []
+                        for node in G.nodes():
+                            x, y = pos[node]
+                            node_x.append(x)
+                            node_y.append(y)
+                            node_text.append(node)
+                        node_trace = go.Scatter(
+                            x=node_x, y=node_y,
+                            mode='markers+text',
+                            text=node_text,
+                            textposition="top center",
+                            marker=dict(size=20, color='rgba(102,126,234,0.8)'),
+                            hoverinfo='text'
+                        )
+                        fig = go.Figure(data=[edge_trace, node_trace],
+                                        layout=go.Layout(
+                                            showlegend=False,
+                                            hovermode='closest',
+                                            margin=dict(b=20,l=5,r=5,t=40),
+                                            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                            title="Function/Method Call Graph"
+                                        ))
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("No call relationships detected.")
+
             if search_query:
                 st.subheader(f"🔎 Semantic Search Results for: '{search_query}'")
                 results = rag.search_code(search_query, k=k_results)
                 for res in results:
                     chunk = res["chunk"]
-                    st.markdown(
-                        f"<div class='metric-card'><b>{chunk.name}</b> "
-                        f"({chunk.chunk_type}, Complexity: <span class='complexity-indicator complexity-{chunk.complexity_category.lower()}'>{chunk.complexity_category}</span>)<br>"
-                        f"<pre>{chunk.content}</pre>"
-                        f"<small>Similarity: {res['similarity']:.3f} | Quality: {res['quality_score']:.2f} | Lines: {res['lines']}</small></div>",
-                        unsafe_allow_html=True
-                    )
+                    # --- Advanced Feature: Expandable Chunk Details ---
+                    with st.expander(f"{chunk.name} ({chunk.chunk_type}, Complexity: {chunk.complexity_category})"):
+                        st.markdown(
+                            f"<div class='metric-card'><b>{chunk.name}</b> "
+                            f"({chunk.chunk_type}, Complexity: <span class='complexity-indicator complexity-{chunk.complexity_category.lower()}'>{chunk.complexity_category}</span>)<br>"
+                            f"<pre>{chunk.content}</pre>"
+                            f"<small>Similarity: {res['similarity']:.3f} | Quality: {res['quality_score']:.2f} | Lines: {res['lines']}</small></div>",
+                            unsafe_allow_html=True
+                        )
+                        st.markdown("**Parameters:** " + ", ".join(chunk.parameters) if chunk.parameters else "_None_")
+                        st.markdown("**Decorators:** " + ", ".join(chunk.decorators) if chunk.decorators else "_None_")
+                        st.markdown("**Docstring:**")
+                        st.code(chunk.docstring or "_None_", language="markdown")
+                        st.markdown(f"**Maintainability Index:** {chunk.maintainability_index:.2f}")
+                        st.markdown(f"**Comment Ratio:** {chunk.comment_ratio:.2f}")
+                        st.markdown(f"**Variables Defined:** {', '.join(chunk.variables_defined) if chunk.variables_defined else '_None_'}")
+                        st.markdown(f"**Calls Made:** {', '.join(chunk.calls_made) if chunk.calls_made else '_None_'}")
         else:
             st.info("Upload a Python file or use example code to get started.")
 
@@ -992,6 +1080,20 @@ class Calculator:
                 st.subheader("Structure Patterns")
                 st.json(analysis["structure_analysis"])
 
+                # --- Advanced Feature: Complexity Heatmap in Analytics Tab ---
+                st.markdown("#### Code Complexity Heatmap")
+                chunk_names = [c.name for c in rag.chunks]
+                complexities = [c.complexity_score for c in rag.chunks]
+                if chunk_names and complexities:
+                    heatmap_df = pd.DataFrame({
+                        "Chunk": chunk_names,
+                        "Complexity": complexities
+                    })
+                    fig = px.density_heatmap(
+                        heatmap_df, x="Chunk", y="Complexity", nbinsy=10, color_continuous_scale="Viridis"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
                 if analysis["semantic_clustering"]:
                     st.subheader("Semantic Clustering Visualization")
                     clusters = pd.DataFrame(analysis["semantic_clustering"]["clusters"])
@@ -1000,6 +1102,57 @@ class Calculator:
                         title="Semantic Clusters of Code Chunks (analysis)"
                     )
                     st.plotly_chart(fig, use_container_width=True)
+                # --- Advanced Feature: Call Graph Visualization in Analytics Tab ---
+                if show_call_graph:
+                    st.markdown("#### Call Graph Visualization")
+                    call_graph = analysis["dependency_analysis"]["call_graph"]
+                    if call_graph:
+                        G = nx.DiGraph()
+                        for caller, callees in call_graph.items():
+                            for callee in callees:
+                                G.add_edge(caller, callee)
+                        pos = nx.spring_layout(G, k=0.5, iterations=20, seed=42)
+                        edge_x = []
+                        edge_y = []
+                        for edge in G.edges():
+                            x0, y0 = pos[edge[0]]
+                            x1, y1 = pos[edge[1]]
+                            edge_x += [x0, x1, None]
+                            edge_y += [y0, y1, None]
+                        edge_trace = go.Scatter(
+                            x=edge_x, y=edge_y,
+                            line=dict(width=1, color='#888'),
+                            hoverinfo='none',
+                            mode='lines'
+                        )
+                        node_x = []
+                        node_y = []
+                        node_text = []
+                        for node in G.nodes():
+                            x, y = pos[node]
+                            node_x.append(x)
+                            node_y.append(y)
+                            node_text.append(node)
+                        node_trace = go.Scatter(
+                            x=node_x, y=node_y,
+                            mode='markers+text',
+                            text=node_text,
+                            textposition="top center",
+                            marker=dict(size=20, color='rgba(102,126,234,0.8)'),
+                            hoverinfo='text'
+                        )
+                        fig = go.Figure(data=[edge_trace, node_trace],
+                                        layout=go.Layout(
+                                            showlegend=False,
+                                            hovermode='closest',
+                                            margin=dict(b=20,l=5,r=5,t=40),
+                                            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                            title="Function/Method Call Graph"
+                                        ))
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("No call relationships detected.")
         else:
             st.info("Process some code in the first tab to see analytics.")
 
