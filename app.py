@@ -7,144 +7,37 @@ import ast
 import tokenize
 import io
 import re
-from typing import List, Dict, Tuple, Optional, Set
+from typing import List, Dict, Tuple
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
-from sklearn.manifold import TSNE
-from sklearn.metrics.pairwise import cosine_similarity
 import time
-import hashlib
-from collections import Counter, defaultdict
-import warnings
-warnings.filterwarnings('ignore')
 
-# Configure page with enhanced metadata
+# Configure page
 st.set_page_config(
-    page_title="Advanced RAG Code Intelligence System",
-    page_icon="🧠",
+    page_title="RAG Code Analysis System",
+    page_icon="🦄",
     layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={
-        'About': "Advanced RAG-powered Code Analysis with Semantic Understanding"
-    }
+    initial_sidebar_state="expanded"
 )
-
-# Custom CSS for enhanced UI
-st.markdown("""
-<style>
-    .main-header {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        color: white;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .metric-card {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #667eea;
-    }
-    .complexity-indicator {
-        display: inline-block;
-        padding: 0.2rem 0.5rem;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: bold;
-    }
-    .complexity-low { background-color: #d4edda; color: #155724; }
-    .complexity-medium { background-color: #fff3cd; color: #856404; }
-    .complexity-high { background-color: #f8d7da; color: #721c24; }
-    .code-insight {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 1rem 0;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 @dataclass
 class CodeChunk:
-    """Enhanced code chunk with comprehensive metadata"""
+    """Represents a parsed code chunk with metadata"""
     content: str
-    chunk_type: str
+    chunk_type: str  # function, class, docstring, import, etc.
     file_path: str
     start_line: int
     end_line: int
     name: str
     complexity_score: float
-    embedding: Optional[np.ndarray] = None
-    
-    # Enhanced metadata
-    parameters: List[str] = field(default_factory=list)
-    return_type: Optional[str] = None
-    docstring: Optional[str] = None
-    decorators: List[str] = field(default_factory=list)
-    imports_used: Set[str] = field(default_factory=set)
-    calls_made: Set[str] = field(default_factory=set)
-    variables_defined: Set[str] = field(default_factory=set)
-    
-    # Quality metrics
-    lines_of_code: int = 0
-    comment_ratio: float = 0.0
-    maintainability_index: float = 0.0
-    
-    def __post_init__(self):
-        self.lines_of_code = len(self.content.split('\n'))
-        self.comment_ratio = self._calculate_comment_ratio()
-        self.maintainability_index = self._calculate_maintainability_index()
-    
-    def _calculate_comment_ratio(self) -> float:
-        """Calculate ratio of comment lines to total lines"""
-        lines = self.content.split('\n')
-        comment_lines = sum(1 for line in lines if line.strip().startswith('#'))
-        return comment_lines / max(len(lines), 1)
-    
-    def _calculate_maintainability_index(self) -> float:
-        """Calculate maintainability index based on multiple factors"""
-        # Simplified maintainability index calculation
-        base_score = 100
-        
-        # Penalize high complexity
-        complexity_penalty = min(self.complexity_score * 2, 20)
-        
-        # Reward good commenting
-        comment_bonus = self.comment_ratio * 10
-        
-        # Penalize very long functions
-        length_penalty = max(0, (self.lines_of_code - 20) * 0.5)
-        
-        return max(0, base_score - complexity_penalty + comment_bonus - length_penalty)
-    
-    @property
-    def complexity_category(self) -> str:
-        """Categorize complexity level"""
-        if self.complexity_score <= 5:
-            return "Low"
-        elif self.complexity_score <= 10:
-            return "Medium"
-        elif self.complexity_score <= 20:
-            return "High"
-        else:
-            return "Very High"
-    
-    @property
-    def quality_score(self) -> float:
-        """Overall quality score based on multiple metrics"""
-        return (self.maintainability_index / 100) * 0.6 + \
-               (min(self.comment_ratio * 10, 1)) * 0.2 + \
-               (max(0, 1 - self.complexity_score / 20)) * 0.2
+    embedding: np.ndarray = None
 
-class AdvancedCodeParser:
-    """Enhanced code parser with comprehensive AST analysis"""
+class CodeParser:
+    """Advanced code parser using AST and tokenization"""
     
     def __init__(self):
         self.chunk_types = {
@@ -153,796 +46,683 @@ class AdvancedCodeParser:
             'import': 'Import Statement',
             'docstring': 'Documentation',
             'comment': 'Comment Block',
-            'variable': 'Variable Assignment',
-            'constant': 'Constant Definition',
-            'decorator': 'Decorator',
-            'async_function': 'Async Function',
-            'property': 'Property Definition'
+            'variable': 'Variable Assignment'
         }
-        
-        # Track relationships between code elements
-        self.call_graph = defaultdict(set)
-        self.import_graph = defaultdict(set)
-        self.inheritance_graph = defaultdict(set)
     
     def parse_python_code(self, code: str, file_path: str = "input.py") -> List[CodeChunk]:
-        """Enhanced Python code parsing with comprehensive analysis"""
+        """Parse Python code into meaningful chunks using AST"""
         chunks = []
         
         try:
             tree = ast.parse(code)
             lines = code.split('\n')
             
-            # First pass: collect all imports and global context
-            imports = self._extract_imports(tree, lines)
-            chunks.extend(imports)
-            
-            # Second pass: analyze functions and classes with context
             for node in ast.walk(tree):
                 if isinstance(node, ast.FunctionDef):
-                    chunk = self._parse_function(node, lines, file_path)
-                    if chunk:
-                        chunks.append(chunk)
-                
-                elif isinstance(node, ast.AsyncFunctionDef):
-                    chunk = self._parse_async_function(node, lines, file_path)
-                    if chunk:
-                        chunks.append(chunk)
+                    chunk_content = '\n'.join(lines[node.lineno-1:node.end_lineno])
+                    complexity = self._calculate_complexity(node)
+                    
+                    chunks.append(CodeChunk(
+                        content=chunk_content,
+                        chunk_type='function',
+                        file_path=file_path,
+                        start_line=node.lineno,
+                        end_line=node.end_lineno,
+                        name=node.name,
+                        complexity_score=complexity
+                    ))
                 
                 elif isinstance(node, ast.ClassDef):
-                    chunk = self._parse_class(node, lines, file_path)
-                    if chunk:
-                        chunks.append(chunk)
+                    chunk_content = '\n'.join(lines[node.lineno-1:node.end_lineno])
+                    complexity = self._calculate_complexity(node)
                     
-                    # Also parse methods within the class
-                    for item in node.body:
-                        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                            method_chunk = self._parse_method(item, node, lines, file_path)
-                            if method_chunk:
-                                chunks.append(method_chunk)
-            
-            # Third pass: analyze module-level variables and constants
-            module_vars = self._extract_module_variables(tree, lines, file_path)
-            chunks.extend(module_vars)
-            
+                    chunks.append(CodeChunk(
+                        content=chunk_content,
+                        chunk_type='class',
+                        file_path=file_path,
+                        start_line=node.lineno,
+                        end_line=node.end_lineno,
+                        name=node.name,
+                        complexity_score=complexity
+                    ))
+                
+                elif isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom):
+                    chunk_content = lines[node.lineno-1] if node.lineno <= len(lines) else ""
+                    
+                    chunks.append(CodeChunk(
+                        content=chunk_content,
+                        chunk_type='import',
+                        file_path=file_path,
+                        start_line=node.lineno,
+                        end_line=node.lineno,
+                        name=f"import_{node.lineno}",
+                        complexity_score=1.0
+                    ))
+        
         except SyntaxError as e:
-            st.error(f"🚨 Syntax Error: {e}")
-            st.info("💡 Try fixing the syntax errors in your code before analysis")
-            return []
-        except Exception as e:
-            st.error(f"🚨 Parsing Error: {e}")
+            st.error(f"Syntax error in code: {e}")
             return []
         
         return chunks
     
-    def _parse_function(self, node: ast.FunctionDef, lines: List[str], file_path: str) -> Optional[CodeChunk]:
-        """Parse function with comprehensive metadata extraction"""
-        chunk_content = '\n'.join(lines[node.lineno-1:node.end_lineno])
-        
-        # Extract function metadata
-        parameters = [arg.arg for arg in node.args.args]
-        decorators = [self._get_decorator_name(dec) for dec in node.decorator_list]
-        docstring = ast.get_docstring(node)
-        
-        # Analyze function calls and variable usage
-        calls_made = self._extract_function_calls(node)
-        variables_defined = self._extract_variables(node)
-        
-        # Calculate various complexity metrics
-        complexity = self._calculate_enhanced_complexity(node)
-        
-        return CodeChunk(
-            content=chunk_content,
-            chunk_type='async_function' if isinstance(node, ast.AsyncFunctionDef) else 'function',
-            file_path=file_path,
-            start_line=node.lineno,
-            end_line=node.end_lineno,
-            name=node.name,
-            complexity_score=complexity,
-            parameters=parameters,
-            docstring=docstring,
-            decorators=decorators,
-            calls_made=calls_made,
-            variables_defined=variables_defined
-        )
-    
-    def _parse_async_function(self, node: ast.AsyncFunctionDef, lines: List[str], file_path: str) -> Optional[CodeChunk]:
-        """Parse async function with async-specific analysis"""
-        chunk = self._parse_function(node, lines, file_path)
-        if chunk:
-            chunk.chunk_type = 'async_function'
-        return chunk
-    
-    def _parse_class(self, node: ast.ClassDef, lines: List[str], file_path: str) -> Optional[CodeChunk]:
-        """Parse class with inheritance and method analysis"""
-        chunk_content = '\n'.join(lines[node.lineno-1:node.end_lineno])
-        
-        # Extract class metadata
-        decorators = [self._get_decorator_name(dec) for dec in node.decorator_list]
-        docstring = ast.get_docstring(node)
-        base_classes = [self._get_name(base) for base in node.bases]
-        
-        # Analyze class methods and properties
-        methods = []
-        properties = []
-        for item in node.body:
-            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                methods.append(item.name)
-            elif isinstance(item, ast.FunctionDef) and any(
-                isinstance(dec, ast.Name) and dec.id == 'property' 
-                for dec in item.decorator_list
-            ):
-                properties.append(item.name)
-        
-        complexity = self._calculate_enhanced_complexity(node)
-        
-        chunk = CodeChunk(
-            content=chunk_content,
-            chunk_type='class',
-            file_path=file_path,
-            start_line=node.lineno,
-            end_line=node.end_lineno,
-            name=node.name,
-            complexity_score=complexity,
-            docstring=docstring,
-            decorators=decorators
-        )
-        
-        # Store inheritance information
-        for base in base_classes:
-            self.inheritance_graph[node.name].add(base)
-        
-        return chunk
-    
-    def _parse_method(self, node: ast.FunctionDef, class_node: ast.ClassDef, 
-                     lines: List[str], file_path: str) -> Optional[CodeChunk]:
-        """Parse class method with class context"""
-        chunk = self._parse_function(node, lines, file_path)
-        if chunk:
-            chunk.name = f"{class_node.name}.{node.name}"
-            chunk.chunk_type = 'method'
-        return chunk
-    
-    def _extract_imports(self, tree: ast.AST, lines: List[str]) -> List[CodeChunk]:
-        """Extract and analyze import statements"""
-        import_chunks = []
-        
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.Import, ast.ImportFrom)):
-                chunk_content = lines[node.lineno-1] if node.lineno <= len(lines) else ""
-                
-                # Determine import type and modules
-                if isinstance(node, ast.Import):
-                    modules = [alias.name for alias in node.names]
-                    import_type = "standard"
-                else:  # ImportFrom
-                    modules = [f"{node.module}.{alias.name}" for alias in node.names if node.module]
-                    import_type = "from_import"
-                
-                import_chunks.append(CodeChunk(
-                    content=chunk_content,
-                    chunk_type='import',
-                    file_path="input.py",
-                    start_line=node.lineno,
-                    end_line=node.lineno,
-                    name=f"import_{node.lineno}_{import_type}",
-                    complexity_score=1.0,
-                    imports_used=set(modules)
-                ))
-        
-        return import_chunks
-    
-    def _extract_module_variables(self, tree: ast.AST, lines: List[str], file_path: str) -> List[CodeChunk]:
-        """Extract module-level variables and constants"""
-        var_chunks = []
-        
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name):
-                var_name = node.targets[0].id
-                
-                # Check if it's a constant (uppercase name)
-                is_constant = var_name.isupper()
-                chunk_type = 'constant' if is_constant else 'variable'
-                
-                chunk_content = lines[node.lineno-1] if node.lineno <= len(lines) else ""
-                
-                var_chunks.append(CodeChunk(
-                    content=chunk_content,
-                    chunk_type=chunk_type,
-                    file_path=file_path,
-                    start_line=node.lineno,
-                    end_line=node.lineno,
-                    name=var_name,
-                    complexity_score=1.0,
-                    variables_defined={var_name}
-                ))
-        
-        return var_chunks
-    
-    def _calculate_enhanced_complexity(self, node: ast.AST) -> float:
-        """Enhanced cyclomatic complexity calculation with additional metrics"""
+    def _calculate_complexity(self, node) -> float:
+        """Calculate cyclomatic complexity of AST node"""
         complexity = 1  # Base complexity
         
         for child in ast.walk(node):
-            # Traditional cyclomatic complexity factors
             if isinstance(child, (ast.If, ast.While, ast.For, ast.With, ast.Try)):
                 complexity += 1
             elif isinstance(child, ast.BoolOp):
                 complexity += len(child.values) - 1
-            elif isinstance(child, ast.ExceptHandler):
-                complexity += 1
-            
-            # Additional complexity factors
-            elif isinstance(child, ast.ListComp):  # List comprehension
-                complexity += 1
-            elif isinstance(child, ast.DictComp):  # Dict comprehension
-                complexity += 1
-            elif isinstance(child, ast.Lambda):    # Lambda functions
-                complexity += 1
         
         return float(complexity)
-    
-    def _extract_function_calls(self, node: ast.AST) -> Set[str]:
-        """Extract all function calls within a node"""
-        calls = set()
-        
-        for child in ast.walk(node):
-            if isinstance(child, ast.Call):
-                if isinstance(child.func, ast.Name):
-                    calls.add(child.func.id)
-                elif isinstance(child.func, ast.Attribute):
-                    calls.add(f"{self._get_name(child.func.value)}.{child.func.attr}")
-        
-        return calls
-    
-    def _extract_variables(self, node: ast.AST) -> Set[str]:
-        """Extract all variables defined within a node"""
-        variables = set()
-        
-        for child in ast.walk(node):
-            if isinstance(child, ast.Assign):
-                for target in child.targets:
-                    if isinstance(target, ast.Name):
-                        variables.add(target.id)
-        
-        return variables
-    
-    def _get_decorator_name(self, decorator: ast.AST) -> str:
-        """Extract decorator name from AST node"""
-        if isinstance(decorator, ast.Name):
-            return decorator.id
-        elif isinstance(decorator, ast.Attribute):
-            return f"{self._get_name(decorator.value)}.{decorator.attr}"
-        return str(decorator)
-    
-    def _get_name(self, node: ast.AST) -> str:
-        """Safely extract name from AST node"""
-        if isinstance(node, ast.Name):
-            return node.id
-        elif isinstance(node, ast.Attribute):
-            return f"{self._get_name(node.value)}.{node.attr}"
-        return "unknown"
 
-class EnhancedEmbeddingGenerator:
-    """Advanced embedding generation with multiple strategies"""
+class EmbeddingGenerator:
+    """Generate embeddings for code chunks using sentence transformers"""
     
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         self.model = SentenceTransformer(model_name)
         self.embedding_dim = self.model.get_sentence_embedding_dimension()
-        
-        # Embedding cache for performance
-        self.embedding_cache = {}
     
     def generate_embeddings(self, chunks: List[CodeChunk]) -> List[CodeChunk]:
-        """Generate embeddings with caching and batch processing"""
+        """Generate embeddings for all code chunks"""
         if not chunks:
             return chunks
         
-        # Prepare texts for embedding with enhanced context
-        texts_to_embed = []
-        cache_keys = []
-        chunks_to_embed = []
+        texts = [self._prepare_text_for_embedding(chunk) for chunk in chunks]
         
-        for chunk in chunks:
-            enhanced_text = self._prepare_enhanced_text(chunk)
-            cache_key = hashlib.md5(enhanced_text.encode()).hexdigest()
-            
-            if cache_key in self.embedding_cache:
-                chunk.embedding = self.embedding_cache[cache_key]
-            else:
-                texts_to_embed.append(enhanced_text)
-                cache_keys.append(cache_key)
-                chunks_to_embed.append(chunk)
+        with st.spinner("Generating embeddings..."):
+            embeddings = self.model.encode(texts, show_progress_bar=True)
         
-        # Generate embeddings for uncached texts
-        if texts_to_embed:
-            with st.spinner(f"🧠 Generating semantic embeddings for {len(texts_to_embed)} code chunks..."):
-                progress_bar = st.progress(0)
-                
-                # Batch processing for better performance
-                batch_size = 32
-                all_embeddings = []
-                
-                for i in range(0, len(texts_to_embed), batch_size):
-                    batch_texts = texts_to_embed[i:i+batch_size]
-                    batch_embeddings = self.model.encode(batch_texts, show_progress_bar=False)
-                    all_embeddings.extend(batch_embeddings)
-                    
-                    progress = min((i + batch_size) / len(texts_to_embed), 1.0)
-                    progress_bar.progress(progress)
-                
-                progress_bar.empty()
-                
-                # Assign embeddings and cache them
-                for chunk, embedding, cache_key in zip(chunks_to_embed, all_embeddings, cache_keys):
-                    chunk.embedding = embedding
-                    self.embedding_cache[cache_key] = embedding
+        for i, chunk in enumerate(chunks):
+            chunk.embedding = embeddings[i]
         
         return chunks
     
-    def _prepare_enhanced_text(self, chunk: CodeChunk) -> str:
-        """Enhanced text preparation with comprehensive context"""
+    def _prepare_text_for_embedding(self, chunk: CodeChunk) -> str:
+        """Prepare code chunk text for embedding generation"""
+        # Combine chunk type, name, and content for better semantic representation
         text_parts = [
             f"Type: {chunk.chunk_type}",
             f"Name: {chunk.name}",
+            f"Content: {chunk.content}"
         ]
-        
-        # Add complexity context
-        text_parts.append(f"Complexity: {chunk.complexity_category}")
-        
-        # Add parameter information for functions
-        if chunk.parameters:
-            text_parts.append(f"Parameters: {', '.join(chunk.parameters)}")
-        
-        # Add decorator information
-        if chunk.decorators:
-            text_parts.append(f"Decorators: {', '.join(chunk.decorators)}")
-        
-        # Add docstring if available
-        if chunk.docstring:
-            # Limit docstring to first sentence for embedding
-            first_sentence = chunk.docstring.split('.')[0][:200]
-            text_parts.append(f"Description: {first_sentence}")
-        
-        # Add the actual code content
-        text_parts.append(f"Content: {chunk.content}")
-        
         return " ".join(text_parts)
 
-class AdvancedVectorDatabase:
-    """Enhanced vector database with multiple index types and advanced search"""
+class VectorDatabase:
+    """FAISS-based vector database for similarity search"""
     
     def __init__(self, embedding_dim: int):
         self.embedding_dim = embedding_dim
-        
-        # Multiple index types for different use cases
-        self.flat_index = faiss.IndexFlatIP(embedding_dim)  # Exact search
-        self.quantized_index = None  # For large datasets
-        self.hnsw_index = None      # For approximate search
-        
+        self.index = faiss.IndexFlatIP(embedding_dim)  # Inner product for cosine similarity
         self.chunks = []
         self.is_built = False
-        
-        # Search statistics
-        self.search_stats = {
-            'total_searches': 0,
-            'avg_search_time': 0.0,
-            'popular_queries': Counter()
-        }
     
     def add_chunks(self, chunks: List[CodeChunk]):
-        """Add chunks to multiple index types"""
+        """Add code chunks to the vector database"""
         if not chunks or not chunks[0].embedding is not None:
             return
         
-        embeddings = np.array([chunk.embedding for chunk in chunks])
-        
         # Normalize embeddings for cosine similarity
+        embeddings = np.array([chunk.embedding for chunk in chunks])
         faiss.normalize_L2(embeddings)
         
-        # Add to flat index
-        self.flat_index.add(embeddings.astype('float32'))
-        
-        # For larger datasets, also create quantized index
-        if len(chunks) > 1000:
-            self.quantized_index = faiss.IndexPQ(self.embedding_dim, 8, 8)
-            self.quantized_index.train(embeddings.astype('float32'))
-            self.quantized_index.add(embeddings.astype('float32'))
-        
+        self.index.add(embeddings.astype('float32'))
         self.chunks.extend(chunks)
         self.is_built = True
     
-    def search(self, query_embedding: np.ndarray, k: int = 5, 
-              search_type: str = "exact") -> List[Tuple[CodeChunk, float]]:
-        """Advanced search with multiple algorithms"""
+    def search(self, query_embedding: np.ndarray, k: int = 5) -> List[Tuple[CodeChunk, float]]:
+        """Search for similar code chunks"""
         if not self.is_built:
             return []
-        
-        start_time = time.time()
         
         # Normalize query embedding
         query_embedding = query_embedding.reshape(1, -1).astype('float32')
         faiss.normalize_L2(query_embedding)
         
-        # Choose search index based on type and data size
-        if search_type == "exact" or self.quantized_index is None:
-            distances, indices = self.flat_index.search(query_embedding, min(k, len(self.chunks)))
-        else:
-            distances, indices = self.quantized_index.search(query_embedding, min(k, len(self.chunks)))
+        distances, indices = self.index.search(query_embedding, min(k, len(self.chunks)))
         
-        # Prepare results with additional metadata
         results = []
         for i, idx in enumerate(indices[0]):
             if idx >= 0:  # Valid index
-                similarity_score = float(distances[0][i])
-                chunk = self.chunks[idx]
-                results.append((chunk, similarity_score))
-        
-        # Update search statistics
-        search_time = time.time() - start_time
-        self.search_stats['total_searches'] += 1
-        self.search_stats['avg_search_time'] = (
-            (self.search_stats['avg_search_time'] * (self.search_stats['total_searches'] - 1) + search_time) /
-            self.search_stats['total_searches']
-        )
+                results.append((self.chunks[idx], float(distances[0][i])))
         
         return results
-    
-    def get_chunk_similarities(self) -> np.ndarray:
-        """Compute similarity matrix between all chunks"""
-        if not self.is_built:
-            return np.array([])
-        
-        embeddings = np.array([chunk.embedding for chunk in self.chunks])
-        return cosine_similarity(embeddings)
 
-class ComprehensiveRAGSystem:
-    """Advanced RAG system with comprehensive analysis capabilities"""
+class CodeRAGSystem:
+    """Complete RAG system for code analysis"""
     
     def __init__(self):
-        self.parser = AdvancedCodeParser()
-        self.embedding_generator = EnhancedEmbeddingGenerator()
-        self.vector_db = AdvancedVectorDatabase(self.embedding_generator.embedding_dim)
+        self.parser = CodeParser()
+        self.embedding_generator = EmbeddingGenerator()
+        self.vector_db = VectorDatabase(self.embedding_generator.embedding_dim)
         self.chunks = []
-        
-        # Analysis results cache
-        self.analysis_cache = {}
-        self.last_analysis_hash = None
     
     def process_code(self, code: str, file_path: str = "input.py") -> Dict:
-        """Process code through enhanced RAG pipeline"""
-        # Generate hash for caching
-        code_hash = hashlib.md5(code.encode()).hexdigest()
-        
-        if code_hash == self.last_analysis_hash:
-            return self.analysis_cache.get(code_hash, {})
-        
-        # Step 1: Advanced parsing with comprehensive analysis
-        with st.spinner("🔍 Parsing code structure..."):
-            self.chunks = self.parser.parse_python_code(code, file_path)
+        """Process code through the complete RAG pipeline"""
+        # Step 1: Parse code into chunks
+        self.chunks = self.parser.parse_python_code(code, file_path)
         
         if not self.chunks:
-            return {"error": "No analyzable code chunks found"}
+            return {"error": "No code chunks could be parsed"}
         
-        # Step 2: Generate semantic embeddings
+        # Step 2: Generate embeddings
         self.chunks = self.embedding_generator.generate_embeddings(self.chunks)
         
-        # Step 3: Build vector database
-        with st.spinner("🏗️ Building semantic search index..."):
-            self.vector_db.add_chunks(self.chunks)
+        # Step 3: Add to vector database
+        self.vector_db.add_chunks(self.chunks)
         
-        # Step 4: Generate comprehensive analysis
-        analysis_results = self._generate_comprehensive_analysis()
-        
-        # Cache results
-        self.analysis_cache[code_hash] = analysis_results
-        self.last_analysis_hash = code_hash
-        
-        return analysis_results
+        return {
+            "total_chunks": len(self.chunks),
+            "chunk_types": {chunk_type: sum(1 for c in self.chunks if c.chunk_type == chunk_type) 
+                          for chunk_type in set(c.chunk_type for c in self.chunks)},
+            "avg_complexity": np.mean([c.complexity_score for c in self.chunks])
+        }
     
-    def search_code(self, query: str, k: int = 5, filters: Dict = None) -> List[Dict]:
-        """Enhanced semantic search with filtering and ranking"""
+    def search_code(self, query: str, k: int = 5) -> List[Dict]:
+        """Search for relevant code chunks based on query"""
         if not self.vector_db.is_built:
             return []
         
         # Generate query embedding
         query_embedding = self.embedding_generator.model.encode([query])[0]
         
-        # Perform search
-        results = self.vector_db.search(query_embedding, k * 2)  # Get more for filtering
+        # Search vector database
+        results = self.vector_db.search(query_embedding, k)
         
-        # Apply filters if provided
-        if filters:
-            results = self._apply_search_filters(results, filters)
-        
-        # Format and rank results
+        # Format results
         formatted_results = []
-        for chunk, similarity in results[:k]:
+        for chunk, similarity in results:
             formatted_results.append({
                 "chunk": chunk,
                 "similarity": similarity,
                 "type": chunk.chunk_type,
                 "name": chunk.name,
                 "complexity": chunk.complexity_score,
-                "quality_score": chunk.quality_score,
-                "lines": f"{chunk.start_line}-{chunk.end_line}",
-                "maintainability": chunk.maintainability_index,
-                "parameters": chunk.parameters,
-                "decorators": chunk.decorators
+                "lines": f"{chunk.start_line}-{chunk.end_line}"
             })
-        
-        # Update search statistics
-        self.vector_db.search_stats['popular_queries'][query] += 1
         
         return formatted_results
     
-    def _apply_search_filters(self, results: List[Tuple[CodeChunk, float]], 
-                            filters: Dict) -> List[Tuple[CodeChunk, float]]:
-        """Apply various filters to search results"""
-        filtered_results = []
-        
-        for chunk, similarity in results:
-            # Type filter
-            if 'types' in filters and chunk.chunk_type not in filters['types']:
-                continue
-            
-            # Complexity filter
-            if 'max_complexity' in filters and chunk.complexity_score > filters['max_complexity']:
-                continue
-            
-            # Quality filter
-            if 'min_quality' in filters and chunk.quality_score < filters['min_quality']:
-                continue
-            
-            filtered_results.append((chunk, similarity))
-        
-        return filtered_results
-    
-    def _generate_comprehensive_analysis(self) -> Dict:
-        """Generate comprehensive codebase analysis"""
+    def generate_code_insights(self) -> Dict:
+        """Generate insights about the codebase using LLM techniques"""
         if not self.chunks:
             return {}
         
-        analysis = {
-            "basic_stats": self._calculate_basic_statistics(),
-            "complexity_analysis": self._analyze_complexity_patterns(),
-            "quality_metrics": self._analyze_code_quality(),
-            "structure_analysis": self._analyze_code_structure(),
-            "semantic_clustering": self._perform_semantic_clustering(),
-            "dependency_analysis": self._analyze_dependencies(),
-            "recommendations": self._generate_recommendations()
-        }
-        
-        return analysis
-    
-    def _calculate_basic_statistics(self) -> Dict:
-        """Calculate comprehensive basic statistics"""
-        stats = {
-            "total_chunks": len(self.chunks),
-            "chunk_types": Counter(c.chunk_type for c in self.chunks),
-            "total_lines": sum(c.lines_of_code for c in self.chunks),
-            "avg_lines_per_chunk": np.mean([c.lines_of_code for c in self.chunks]),
-            "functions_count": sum(1 for c in self.chunks if c.chunk_type in ['function', 'method', 'async_function']),
-            "classes_count": sum(1 for c in self.chunks if c.chunk_type == 'class'),
-            "imports_count": sum(1 for c in self.chunks if c.chunk_type == 'import')
-        }
-        
-        return stats
-    
-    def _analyze_complexity_patterns(self) -> Dict:
-        """Analyze complexity patterns and distributions"""
+        # Code complexity analysis
         complexities = [c.complexity_score for c in self.chunks]
         
-        return {
-            "mean": np.mean(complexities),
-            "std": np.std(complexities),
-            "median": np.median(complexities),
-            "max": np.max(complexities),
-            "min": np.min(complexities),
-            "distribution": {
-                "low": sum(1 for c in complexities if c <= 5),
-                "medium": sum(1 for c in complexities if 5 < c <= 10),
-                "high": sum(1 for c in complexities if 10 < c <= 20),
-                "very_high": sum(1 for c in complexities if c > 20)
+        # Clustering analysis for code organization
+        if len(self.chunks) > 1:
+            embeddings = np.array([c.embedding for c in self.chunks])
+            
+            # Dimensionality reduction for visualization
+            pca = PCA(n_components=min(2, embeddings.shape[1]))
+            reduced_embeddings = pca.fit_transform(embeddings)
+            
+            # Clustering
+            n_clusters = min(3, len(self.chunks))
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+            clusters = kmeans.fit_predict(embeddings)
+            
+            return {
+                "complexity_stats": {
+                    "mean": np.mean(complexities),
+                    "std": np.std(complexities),
+                    "max": np.max(complexities),
+                    "min": np.min(complexities)
+                },
+                "clustering": {
+                    "clusters": clusters.tolist(),
+                    "reduced_embeddings": reduced_embeddings.tolist()
+                },
+                "code_patterns": self._analyze_code_patterns()
             }
-        }
-    
-    def _analyze_code_quality(self) -> Dict:
-        """Analyze overall code quality metrics"""
-        quality_scores = [c.quality_score for c in self.chunks]
-        maintainability_scores = [c.maintainability_index for c in self.chunks]
-        comment_ratios = [c.comment_ratio for c in self.chunks]
         
-        return {
-            "avg_quality_score": np.mean(quality_scores),
-            "avg_maintainability": np.mean(maintainability_scores),
-            "avg_comment_ratio": np.mean(comment_ratios),
-            "high_quality_chunks": sum(1 for q in quality_scores if q > 0.8),
-            "needs_improvement": sum(1 for q in quality_scores if q < 0.5)
-        }
+        return {"complexity_stats": {"mean": np.mean(complexities)}}
     
-    def _analyze_code_structure(self) -> Dict:
-        """Analyze code structure and organization"""
-        return {
+    def _analyze_code_patterns(self) -> Dict:
+        """Analyze common patterns in the codebase"""
+        patterns = {
             "has_classes": any(c.chunk_type == 'class' for c in self.chunks),
-            "has_async_functions": any(c.chunk_type == 'async_function' for c in self.chunks),
-            "decorators_used": set().union(*[c.decorators for c in self.chunks if c.decorators]),
-            "imported_modules": set().union(*[c.imports_used for c in self.chunks if hasattr(c, "imports_used") and c.imports_used]),
-            "methods_per_class": self._methods_per_class(),
-            "functions_per_file": self._functions_per_file(),
-            "variables_defined": set().union(*[c.variables_defined for c in self.chunks if hasattr(c, "variables_defined") and c.variables_defined])
+            "has_functions": any(c.chunk_type == 'function' for c in self.chunks),
+            "import_count": sum(1 for c in self.chunks if c.chunk_type == 'import'),
         }
 
-    def _methods_per_class(self) -> Dict[str, int]:
-        """Count methods per class"""
-        class_methods = {}
-        for c in self.chunks:
-            if c.chunk_type == "method" and "." in c.name:
-                class_name = c.name.split(".", 1)[0]
-                class_methods[class_name] = class_methods.get(class_name, 0) + 1
-        return class_methods
+        function_lengths = [c.end_line - c.start_line + 1
+                            for c in self.chunks if c.chunk_type == 'function']
+        
+        patterns["avg_function_length"] = np.mean(function_lengths) if function_lengths else 0.0
 
-    def _functions_per_file(self) -> int:
-        """Count functions per file (assuming single file for now)"""
-        return sum(1 for c in self.chunks if c.chunk_type in ["function", "async_function", "method"])
+        return patterns
 
-    def _perform_semantic_clustering(self) -> Dict:
-        """Cluster code chunks using KMeans and reduce dimensions for visualization"""
-        if not self.chunks or not any(c.embedding is not None for c in self.chunks):
-            return {}
-
-        embeddings = np.array([c.embedding for c in self.chunks if c.embedding is not None])
-        n_clusters = min(8, len(embeddings))
-        if n_clusters < 2:
-            return {}
-
-        # KMeans clustering
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init="auto")
-        cluster_labels = kmeans.fit_predict(embeddings)
-
-        # PCA for 2D visualization
-        pca = PCA(n_components=2)
-        reduced = pca.fit_transform(embeddings)
-
-        # Prepare cluster info
-        clusters = []
-        for idx, c in enumerate(self.chunks):
-            if c.embedding is not None:
-                clusters.append({
-                    "name": c.name,
-                    "type": c.chunk_type,
-                    "cluster": int(cluster_labels[idx]),
-                    "x": float(reduced[idx, 0]),
-                    "y": float(reduced[idx, 1])
-                })
-
-        return {
-            "clusters": clusters,
-            "n_clusters": n_clusters,
-            "explained_variance": float(np.sum(pca.explained_variance_ratio_))
-        }
-
-    def _analyze_dependencies(self) -> Dict:
-        """Analyze import and call dependencies"""
-        import_graph = dict(self.parser.import_graph)
-        call_graph = dict(self.parser.call_graph)
-        inheritance_graph = dict(self.parser.inheritance_graph)
-        return {
-            "import_graph": import_graph,
-            "call_graph": call_graph,
-            "inheritance_graph": inheritance_graph
-        }
-
-    def _generate_recommendations(self) -> List[str]:
-        """Generate code improvement recommendations based on analysis"""
-        recs = []
-        quality = self._analyze_code_quality()
-        complexity = self._analyze_complexity_patterns()
-        stats = self._calculate_basic_statistics()
-
-        if quality["avg_quality_score"] < 0.6:
-            recs.append("Increase code comments and improve maintainability for better quality.")
-        if complexity["max"] > 20:
-            recs.append("Refactor highly complex functions/classes to reduce cyclomatic complexity.")
-        if stats["functions_count"] > 0 and stats["classes_count"] == 0:
-            recs.append("Consider using classes for better code organization and reusability.")
-        if stats["imports_count"] > 10:
-            recs.append("Review import statements for possible redundancy or unused imports.")
-        if quality["needs_improvement"] > 0:
-            recs.append(f"{quality['needs_improvement']} code chunks have low quality scores. Review and refactor as needed.")
-
-        if not recs:
-            recs.append("Codebase is well-structured and maintains good quality standards.")
-
-        return recs
-
-# --- Streamlit UI and main logic would follow here ---
+# Initialize the RAG system
+@st.cache_resource
+def get_rag_system():
+    return CodeRAGSystem()
 
 def main():
-    st.markdown('<div class="main-header"><h1>🧠 Advanced RAG Code Intelligence System</h1></div>', unsafe_allow_html=True)
-    st.sidebar.header("Upload & Settings")
+    st.title("🦄 RAG Code Analysis System")
+    st.markdown("**Advanced Code Understanding with Retrieval-Augmented Generation**")
+    
+    # Sidebar configuration
+    st.sidebar.header("Configuration")
+    max_results = st.sidebar.slider("Max Search Results", 1, 10, 5)
+    
+    # LLM Techniques Information
+    with st.sidebar.expander("🧠 LLM Techniques Used"):
+        st.markdown("""
+        **Advanced AI Techniques:**
+        - **Semantic Embeddings**: Understanding code meaning
+        - **Vector Similarity Search**: Finding relevant code
+        - **AST Parsing**: Structural code analysis  
+        - **Complexity Analysis**: Code quality metrics
+        - **Clustering**: Code organization patterns
+        - **Dimensionality Reduction**: Visualization
+        - **Context-Aware Retrieval**: Precise code matching
+        """)
+    
+    rag_system = get_rag_system()
+    
+    # Main interface tabs
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Code Input", "🔍 Search & Retrieval", "📊 Code Analytics", "🎯 System Demo", "⚙️ How It Works"])
+    
+    with tab1:
+        st.header("Code Parsing and Chunking")
+        
+        # Sample code for demo
+        sample_code = '''import numpy as np
+import pandas as pd
+from typing import List, Optional
 
-    uploaded_file = st.sidebar.file_uploader("Upload Python file", type=["py"])
-    example_code = st.sidebar.checkbox("Use example code", value=False)
-    search_query = st.sidebar.text_input("Semantic Search Query", "")
-    k_results = st.sidebar.slider("Top-K Results", 1, 10, 5)
-    show_analytics = st.sidebar.checkbox("Show Analytics", value=True)
+class DataProcessor:
+    """A class for processing and analyzing data"""
+    
+    def __init__(self, data_path: str):
+        self.data_path = data_path
+        self.data = None
+    
+    def load_data(self) -> pd.DataFrame:
+        """Load data from file"""
+        try:
+            self.data = pd.read_csv(self.data_path)
+            return self.data
+        except FileNotFoundError:
+            print(f"File {self.data_path} not found")
+            return None
+    
+    def clean_data(self, columns: List[str]) -> pd.DataFrame:
+        """Clean data by removing null values"""
+        if self.data is not None:
+            cleaned_data = self.data.dropna(subset=columns)
+            return cleaned_data
+        return None
 
-    if uploaded_file or example_code:
-        if uploaded_file:
-            code = uploaded_file.read().decode("utf-8")
-            file_path = uploaded_file.name
+def calculate_statistics(data: pd.DataFrame) -> dict:
+    """Calculate basic statistics for numerical columns"""
+    stats = {}
+    for column in data.select_dtypes(include=[np.number]).columns:
+        stats[column] = {
+            'mean': data[column].mean(),
+            'std': data[column].std(),
+            'min': data[column].min(),
+            'max': data[column].max()
+        }
+    return stats
+
+def process_batch(file_paths: List[str]) -> Optional[pd.DataFrame]:
+    """Process multiple files in batch"""
+    all_data = []
+    
+    for path in file_paths:
+        processor = DataProcessor(path)
+        data = processor.load_data()
+        
+        if data is not None:
+            cleaned = processor.clean_data(['id', 'value'])
+            if cleaned is not None:
+                all_data.append(cleaned)
+    
+    if all_data:
+        return pd.concat(all_data, ignore_index=True)
+    return None
+'''
+        
+        code_input = st.text_area(
+            "Enter Python Code:",
+            value=sample_code,
+            height=400,
+            help="Paste your Python code here for analysis"
+        )
+        
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("🔄 Process Code", type="primary"):
+                if code_input.strip():
+                    with st.spinner("Processing code through RAG pipeline..."):
+                        results = rag_system.process_code(code_input)
+                    
+                    if "error" not in results:
+                        st.success(f"✅ Successfully processed {results['total_chunks']} code chunks")
+                        
+                        # Display processing results
+                        col_a, col_b, col_c = st.columns(3)
+                        with col_a:
+                            st.metric("Total Chunks", results['total_chunks'])
+                        with col_b:  
+                            st.metric("Avg Complexity", f"{results['avg_complexity']:.1f}")
+                        with col_c:
+                            st.metric("Chunk Types", len(results['chunk_types']))
+                        
+                        # Show chunk breakdown
+                        st.subheader("Chunk Analysis")
+                        chunk_df = pd.DataFrame(list(results['chunk_types'].items()), 
+                                              columns=['Type', 'Count'])
+                        st.bar_chart(chunk_df.set_index('Type'))
+                        
+                    else:
+                        st.error(results['error'])
+                else:
+                    st.warning("Please enter some Python code to process")
+    
+    with tab2:
+        st.header("Semantic Code Search")
+        
+        if not rag_system.vector_db.is_built:
+            st.warning("⚠️ Please process some code first in the 'Code Input' tab")
         else:
-            code = '''
-def add(a, b):
-    """Add two numbers."""
-    return a + b
-
-class Calculator:
-    def multiply(self, x, y):
-        # Multiplies two numbers
-        return x * y
-            '''
-            file_path = "example.py"
-
-        rag = ComprehensiveRAGSystem()
-        analysis = rag.process_code(code, file_path)
-
-        if "error" in analysis:
-            st.error(analysis["error"])
-            return
-
-        st.subheader("Code Overview")
-        st.code(code, language="python")
-
-        if show_analytics:
-            st.subheader("📊 Codebase Analytics")
+            search_query = st.text_input(
+                "Search Query:",
+                placeholder="e.g., 'function that processes data', 'class for file handling', 'error handling code'",
+                help="Enter a natural language description of what you're looking for"
+            )
+            
+            if st.button("🔍 Search Code", type="primary"):
+                if search_query.strip():
+                    with st.spinner("Searching through code embeddings..."):
+                        search_results = rag_system.search_code(search_query, max_results)
+                    
+                    if search_results:
+                        st.success(f"Found {len(search_results)} relevant code chunks")
+                        
+                        for i, result in enumerate(search_results, 1):
+                            with st.expander(f"Result {i}: {result['name']} (Similarity: {result['similarity']:.3f})"):
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.write(f"**Type:** {result['type']}")
+                                with col2:
+                                    st.write(f"**Lines:** {result['lines']}")
+                                with col3:
+                                    st.write(f"**Complexity:** {result['complexity']:.1f}")
+                                
+                                st.code(result['chunk'].content, language='python')
+                    else:
+                        st.info("No relevant code chunks found for your query")
+                else:
+                    st.warning("Please enter a search query")
+    
+    with tab3:
+        st.header("Code Analytics & Insights")
+        
+        if not rag_system.chunks:
+            st.warning("⚠️ Please process some code first to see analytics")
+        else:
+            insights = rag_system.generate_code_insights()
+            
+            if insights:
+                # Complexity analysis
+                if 'complexity_stats' in insights:
+                    st.subheader("📈 Complexity Analysis")
+                    stats = insights['complexity_stats']
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Mean Complexity", f"{stats['mean']:.2f}")
+                    with col2:
+                        st.metric("Max Complexity", f"{stats['max']:.0f}")
+                    with col3:
+                        st.metric("Min Complexity", f"{stats['min']:.0f}")
+                    with col4:
+                        st.metric("Std Deviation", f"{stats.get('std', 0):.2f}")
+                
+                # Code patterns
+                if 'code_patterns' in insights:
+                    st.subheader("🔍 Code Patterns")
+                    patterns = insights['code_patterns']
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("**Code Structure:**")
+                        st.write(f"- Has Classes: {'✅' if patterns['has_classes'] else '❌'}")
+                        st.write(f"- Has Functions: {'✅' if patterns['has_functions'] else '❌'}")
+                        st.write(f"- Import Statements: {patterns['import_count']}")
+                    
+                    with col2:
+                        st.write("**Quality Metrics:**")
+                        avg_length = patterns.get('avg_function_length', 0)
+                        st.write(f"- Avg Function Length: {avg_length:.1f} lines")
+                        
+                        if avg_length > 20:
+                            st.write("⚠️ Consider breaking down long functions")
+                        elif avg_length > 0:
+                            st.write("✅ Good function length")
+                
+                # Clustering visualization
+                if 'clustering' in insights:
+                    st.subheader("🎯 Code Organization Clusters")
+                    
+                    clusters = insights['clustering']['clusters']
+                    embeddings_2d = insights['clustering']['reduced_embeddings']
+                    
+                    # Create visualization dataframe
+                    viz_df = pd.DataFrame({
+                        'x': [e[0] for e in embeddings_2d],
+                        'y': [e[1] for e in embeddings_2d],
+                        'cluster': clusters,
+                        'name': [c.name for c in rag_system.chunks],
+                        'type': [c.chunk_type for c in rag_system.chunks],
+                        'complexity': [c.complexity_score for c in rag_system.chunks]
+                    })
+                    
+                    fig = px.scatter(
+                        viz_df, x='x', y='y', 
+                        color='cluster',
+                        size='complexity',
+                        hover_data=['name', 'type'],
+                        title="Code Chunks Clustered by Semantic Similarity"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+    
+    with tab4:
+        st.header("🎯 RAG System Architecture Demo")
+        
+        st.markdown("""
+        This application demonstrates a complete **Retrieval-Augmented Generation (RAG)** system 
+        specifically designed for code analysis, incorporating the same advanced techniques used in 
+        AI coding assistants like GitHub Copilot.
+        """)
+        
+        # Architecture diagram
+        st.subheader("System Architecture")
+        
+        # Create a flow diagram
+        fig = go.Figure()
+        
+        # Add boxes for each step
+        steps = [
+            "Code Input", "AST Parsing", "Chunk Extraction", 
+            "Embedding Generation", "Vector Storage", "Semantic Search", "Result Generation"
+        ]
+        
+        y_positions = list(range(len(steps)))
+        
+        for i, step in enumerate(steps):
+            fig.add_trace(go.Scatter(
+                x=[i], y=[0],
+                mode='markers+text',
+                marker=dict(size=50, color=f'rgba(55, 128, 191, {0.7 + i*0.05})'),
+                text=step,
+                textposition="middle center",
+                name=step,
+                showlegend=False
+            ))
+            
+            if i < len(steps) - 1:
+                fig.add_annotation(
+                    x=i+0.4, y=0,
+                    ax=i+0.6, ay=0,
+                    xref='x', yref='y',
+                    axref='x', ayref='y',
+                    arrowhead=2,
+                    arrowsize=1,
+                    arrowwidth=2,
+                    arrowcolor='rgb(55, 128, 191)'
+                )
+        
+        fig.update_layout(
+            title="RAG Pipeline Flow",
+            showlegend=False,
+            xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            height=200
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Key features
+        st.subheader("Advanced LLM Techniques")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            **Core RAG Components:**
+            - **Abstract Syntax Tree (AST) parsing** for structural code understanding
+            - **Semantic embeddings** using transformer models
+            - **Vector similarity search** with FAISS indexing
+            - **Contextual retrieval** for precise code matching
+            """)
+        
+        with col2:
+            st.markdown("""
+            **AI Enhancement Features:**
+            - **Complexity analysis** using cyclomatic complexity
+            - **Code clustering** for organization insights  
+            - **Pattern recognition** for code quality assessment
+            - **Multi-modal search** supporting natural language queries
+            """)
+        
+        # Performance metrics
+        if rag_system.chunks:
+            st.subheader("Current Session Statistics")
+            
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Total Chunks", analysis["basic_stats"]["total_chunks"])
-                st.metric("Functions", analysis["basic_stats"]["functions_count"])
+                st.metric("Processed Chunks", len(rag_system.chunks))
             with col2:
-                st.metric("Classes", analysis["basic_stats"]["classes_count"])
-                st.metric("Imports", analysis["basic_stats"]["imports_count"])
+                st.metric("Embedding Dimension", rag_system.embedding_generator.embedding_dim)
             with col3:
-                st.metric("Avg. Lines/Chunk", f"{analysis['basic_stats']['avg_lines_per_chunk']:.1f}")
-                st.metric("Total Lines", analysis["basic_stats"]["total_lines"])
+                st.metric("Vector DB Size", len(rag_system.vector_db.chunks))
 
-            st.markdown("#### Complexity Distribution")
-            complexity_dist = analysis["complexity_analysis"]["distribution"]
-            st.bar_chart(pd.DataFrame.from_dict(complexity_dist, orient="index", columns=["Count"]))
+    with tab5:
+        st.header("⚙️ How It Works: A Deep Dive into the RAG System")
+        st.markdown("""
+        This tab provides a detailed, step-by-step explanation of the technologies and processes used in this application. 
+        Use this as a guide to understand how we turn raw code into a searchable, analyzable knowledge base.
+        """)
 
-            st.markdown("#### Quality Metrics")
-            st.json(analysis["quality_metrics"])
+        # Step 1: Parsing
+        with st.expander("Step 1: Parsing & Chunking - Understanding Code Structure", expanded=True):
+            st.markdown("""
+            **Objective:** To break down a large, unstructured block of code into smaller, logical, and meaningful units called "chunks".
 
-            st.markdown("#### Structure Analysis")
-            st.json(analysis["structure_analysis"])
+            - **What's Happening?**
+                - We use Python's built-in `ast` (Abstract Syntax Tree) module. An AST is a tree representation of the code's structure, where each node represents a construct like a function definition, a class, or an import statement.
+                - By "walking" this tree, we can precisely identify and extract these constructs, along with their metadata (e.g., name, start/end line numbers).
+            
+            - **Why is this important?**
+                - **Precision:** Instead of blindly splitting a file by lines or blank spaces, AST parsing gives us semantically complete units. A function chunk contains the entire function body.
+                - **Metadata:** We capture crucial context, like the name of the function (`node.name`) or its location in the file.
+                - **Analysis:** This structured data allows us to perform further analysis, like calculating the **Cyclomatic Complexity** for each function or class to measure its potential complexity and maintainability.
 
-            st.markdown("#### Recommendations")
-            for rec in analysis["recommendations"]:
-                st.info(rec)
+            **In this app:** The `CodeParser` class is responsible for this step. When you click "Process Code", it's the first thing that runs.
+            """)
+            st.code("""
+# Simplified view of AST parsing
+for node in ast.walk(tree):
+    if isinstance(node, ast.FunctionDef):
+        # Extract function content, name, and line numbers
+        ...
+    elif isinstance(node, ast.ClassDef):
+        # Extract class content, name, and line numbers
+        ...
+            """, language='python')
 
-            if analysis["semantic_clustering"]:
-                st.markdown("#### Semantic Clustering (2D PCA)")
-                clusters = pd.DataFrame(analysis["semantic_clustering"]["clusters"])
-                fig = px.scatter(
-                    clusters, x="x", y="y", color="cluster", hover_data=["name", "type"],
-                    title="Semantic Clusters of Code Chunks"
-                )
-                st.plotly_chart(fig, use_container_width=True)
+        # Step 2: Embedding
+        with st.expander("Step 2: Embedding - Turning Code into Numbers", expanded=False):
+            st.markdown("""
+            **Objective:** To convert the text-based code chunks into numerical representations (vectors) that capture their semantic meaning.
 
-        if search_query:
-            st.subheader(f"🔎 Semantic Search Results for: '{search_query}'")
-            results = rag.search_code(search_query, k=k_results)
-            for res in results:
-                chunk = res["chunk"]
-                st.markdown(
-                    f"<div class='metric-card'><b>{chunk.name}</b> "
-                    f"({chunk.chunk_type}, Complexity: <span class='complexity-indicator complexity-{chunk.complexity_category.lower()}'>{chunk.complexity_category}</span>)<br>"
-                    f"<pre>{chunk.content}</pre>"
-                    f"<small>Similarity: {res['similarity']:.3f} | Quality: {res['quality_score']:.2f} | Lines: {res['lines']}</small></div>",
-                    unsafe_allow_html=True
-                )
+            - **What's Happening?**
+                - We use a pre-trained **Transformer model** from the `sentence-transformers` library (specifically, `all-MiniLM-L6-v2`).
+                - This model has been trained on a massive amount of text and has learned to represent the meaning of sentences as high-dimensional vectors.
+                - Before embedding, we enrich the code content with its metadata: `f"Type: {chunk.chunk_type} Name: {chunk.name} Content: {chunk.content}"`. This gives the model more context.
+
+            - **Why is this important?**
+                - **Semantic Understanding:** The resulting vectors (embeddings) place chunks with similar meanings close to each other in the vector space. For example, `def load_data()` and `def read_file()` would have similar embeddings, even though they use different words.
+                - **Machine-Readable:** Computers can't compare text directly for meaning. But they are excellent at comparing numerical vectors. This step makes semantic search possible.
+
+            **In this app:** The `EmbeddingGenerator` class handles this. It takes the list of `CodeChunk` objects and adds an `embedding` attribute to each one.
+            """)
+
+        # Step 3: Indexing
+        with st.expander("Step 3: Indexing & Storage - Creating a Searchable Code Library", expanded=False):
+            st.markdown("""
+            **Objective:** To store the generated embeddings in a specialized database that allows for extremely fast similarity searches.
+
+            - **What's Happening?**
+                - We use `faiss` (Facebook AI Similarity Search), a high-performance library for vector search.
+                - We create an `IndexFlatIP` index. "IP" stands for Inner Product, which is a mathematical operation to measure similarity between vectors. For normalized vectors (which we use), this is equivalent to **Cosine Similarity**.
+                - All the embeddings from our code chunks are added to this index.
+
+            - **Why is this important?**
+                - **Speed:** Searching through thousands or millions of vectors one-by-one would be too slow. `faiss` uses optimized algorithms to find the "nearest neighbors" to a query vector almost instantly.
+                - **Scalability:** This approach scales well to very large codebases.
+
+            **In this app:** The `VectorDatabase` class wraps the `faiss` index. The `add_chunks` method populates the index.
+            """)
+
+        # Step 4: Retrieval
+        with st.expander("Step 4: Retrieval & Search - Finding What You Need", expanded=False):
+            st.markdown("""
+            **Objective:** To find the most relevant code chunks based on a user's natural language query.
+
+            - **What's Happening?**
+                1.  The user's search query (e.g., "function that cleans data") is converted into an embedding using the *exact same* model from Step 2.
+                2.  This new "query vector" is then used to search the `faiss` index.
+                3.  `faiss` returns the top `k` most similar code chunk embeddings from the database, along with their similarity scores.
+
+            - **Why is this important?**
+                - This is the core of the **Retrieval** in RAG. It allows you to search based on *intent* and *meaning*, not just keywords. You don't need to remember the exact function name; you can describe what it does.
+
+            **In this app:** The `search_code` method in `CodeRAGSystem` performs these steps. The results are then displayed in the "Search & Retrieval" tab.
+            """)
+
+        # Step 5: Analytics
+        with st.expander("Bonus Step: Analytics & Insights - Going Beyond Search", expanded=False):
+            st.markdown("""
+            **Objective:** To leverage the embeddings and structured data for higher-level codebase analysis.
+
+            - **What's Happening?**
+                - **Clustering:** We use the `KMeans` algorithm on the code embeddings. This automatically groups semantically related functions and classes together. For example, all data loading and processing functions might end up in the same cluster.
+                - **Visualization:** The embeddings are high-dimensional (384 dimensions for this model), which we can't visualize. We use **PCA (Principal Component Analysis)** to reduce them to 2 dimensions. This allows us to plot the chunks on a scatter plot, where proximity indicates semantic similarity.
+                - **Pattern Analysis:** We can easily calculate metrics like the number of classes vs. functions, or the average function length, because we already parsed this data in Step 1.
+
+            - **Why is this important?**
+                - This provides a "bird's-eye view" of the codebase. It can help identify architectural patterns, find areas of related functionality, or spot code that might be overly complex or too long.
+
+            **In this app:** The `generate_code_insights` method produces this data, which is then visualized in the "Code Analytics" tab.
+            """)
 
 if __name__ == "__main__":
     main()
