@@ -1090,7 +1090,7 @@ class Calculator:
                         "Complexity": complexities
                     })
                     fig = px.density_heatmap(
-                        heatmap_df, x="Chunk", y="Complexity", nbinsy=10, color_continuous_scale="Viridis",title="Density heatmap analysis"
+                        heatmap_df, x="Chunk", y="Complexity", nbinsy=10, color_continuous_scale="Viridis"
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
@@ -1243,154 +1243,247 @@ class Calculator:
 
     with tab4:
         st.header("⚙️ How It Works: A Deep Dive into the RAG System")
+
         st.markdown("""
-        This tab provides a detailed, step-by-step explanation of the technologies and processes used in this application. 
+        This tab provides a **super comprehensive, step-by-step explanation** of the technologies and processes used in this application.  
         Use this as a guide to understand how we turn raw code into a searchable, analyzable knowledge base.
-
-        ---
-        ## Introduction
-
-        The **Retrieval-Augmented Generation (RAG) Code Intelligence System** is a sophisticated pipeline that combines traditional program analysis, modern machine learning, and advanced information retrieval to provide deep insights and semantic search capabilities for codebases. This system is inspired by the latest advances in AI-powered developer tools, such as GitHub Copilot, and is designed to help developers, code reviewers, and engineering leaders understand, search, and improve code at scale.
-
-        The RAG system consists of several tightly integrated stages:
-
-        1. **Parsing & Chunking**: Breaking down code into meaningful, analyzable units.
-        2. **Embedding**: Transforming code chunks into high-dimensional vectors that capture their semantics.
-        3. **Indexing & Storage**: Organizing these vectors for efficient similarity search.
-        4. **Retrieval & Search**: Enabling natural language and code-based queries to find relevant code.
-        5. **Analytics & Insights**: Leveraging structured and semantic data for higher-level analysis.
-
-        Let's explore each stage in detail.
-
-        ---
-        ### Step 1: Parsing & Chunking - Understanding Code Structure
-
-        **Objective:**  
-        To break down a large, unstructured block of code into smaller, logical, and meaningful units called "chunks".
-
-        **How it works:**  
-        - We use Python's built-in `ast` (Abstract Syntax Tree) module. An AST is a tree representation of the code's structure, where each node represents a construct like a function definition, a class, or an import statement.
-        - By "walking" this tree, we can precisely identify and extract these constructs, along with their metadata (e.g., name, start/end line numbers, parameters, decorators, docstrings, and more).
-        - This process is robust to formatting, comments, and whitespace, ensuring that chunks are always semantically meaningful.
-
-        **Why is this important?**  
-        - **Precision:** Instead of blindly splitting a file by lines or blank spaces, AST parsing gives us semantically complete units. A function chunk contains the entire function body, including nested logic and comments.
-        - **Rich Metadata:** We capture crucial context, like the name of the function (`node.name`), its parameters, decorators, and its location in the file.
-        - **Analysis:** This structured data allows us to perform further analysis, like calculating the **Cyclomatic Complexity** for each function or class to measure its potential complexity and maintainability.
-        - **Extensibility:** The parser can be extended to extract additional information, such as variable usage, call graphs, and inheritance relationships.
-
-        **Example:**  
-        ```python
-        # Simplified view of AST parsing
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
-                # Extract function content, name, and line numbers
-                ...
-            elif isinstance(node, ast.ClassDef):
-                # Extract class content, name, and line numbers
-                ...
-        ```
-
-        ---
-        ### Step 2: Embedding - Turning Code into Numbers
-
-        **Objective:**  
-        To convert the text-based code chunks into numerical representations (vectors) that capture their semantic meaning.
-
-        **How it works:**  
-        - We use a pre-trained **Transformer model** from the `sentence-transformers` library (specifically, `all-MiniLM-L6-v2`).
-        - This model has been trained on a massive amount of text and code, and has learned to represent the meaning of sentences and code snippets as high-dimensional vectors (embeddings).
-        - Before embedding, we enrich the code content with its metadata:  
-          `f"Type: {chunk.chunk_type} Name: {chunk.name} Content: {chunk.content}"`.  
-          This gives the model more context, improving the quality of the embeddings.
-        - Embeddings are generated in batches for efficiency, and cached for performance.
-
-        **Why is this important?**  
-        - **Semantic Understanding:** The resulting vectors (embeddings) place chunks with similar meanings close to each other in the vector space. For example, `def load_data()` and `def read_file()` would have similar embeddings, even though they use different words.
-        - **Machine-Readable:** Computers can't compare text directly for meaning. But they are excellent at comparing numerical vectors. This step makes semantic search possible.
-        - **Transfer Learning:** By leveraging pre-trained models, we benefit from knowledge learned from vast codebases and natural language, enabling robust understanding even for unfamiliar code.
-
-        **Technical Note:**  
-        Embeddings are typically 384-dimensional for this model, capturing subtle nuances of code semantics, structure, and intent.
-
-        ---
-        ### Step 3: Indexing & Storage - Creating a Searchable Code Library
-
-        **Objective:**  
-        To store the generated embeddings in a specialized database that allows for extremely fast similarity searches.
-
-        **How it works:**  
-        - We use `faiss` (Facebook AI Similarity Search), a high-performance library for vector search.
-        - We create an `IndexFlatIP` index. "IP" stands for Inner Product, which is a mathematical operation to measure similarity between vectors. For normalized vectors (which we use), this is equivalent to **Cosine Similarity**.
-        - All the embeddings from our code chunks are added to this index.
-        - For very large codebases, more advanced index types (e.g., quantized or HNSW) can be used for scalability.
-
-        **Why is this important?**  
-        - **Speed:** Searching through thousands or millions of vectors one-by-one would be too slow. `faiss` uses optimized algorithms to find the "nearest neighbors" to a query vector almost instantly.
-        - **Scalability:** This approach scales well to very large codebases, supporting real-time search and analytics.
-        - **Flexibility:** The system can support multiple index types for different use cases (exact vs. approximate search).
-
-        **Example:**  
-        ```python
-        # Add embeddings to the FAISS index
-        faiss.normalize_L2(embeddings)
-        index.add(embeddings.astype('float32'))
-        ```
-
-        ---
-        ### Step 4: Retrieval & Search - Finding What You Need
-
-        **Objective:**  
-        To find the most relevant code chunks based on a user's natural language query.
-
-        **How it works:**  
-        1. The user's search query (e.g., "function that cleans data") is converted into an embedding using the *exact same* model from Step 2.
-        2. This new "query vector" is then used to search the `faiss` index.
-        3. `faiss` returns the top `k` most similar code chunk embeddings from the database, along with their similarity scores.
-        4. Results can be filtered and ranked based on additional criteria, such as complexity, quality, or chunk type.
-
-        **Why is this important?**  
-        - **Semantic Search:** This is the core of the **Retrieval** in RAG. It allows you to search based on *intent* and *meaning*, not just keywords. You don't need to remember the exact function name; you can describe what it does.
-        - **Natural Language Support:** Developers can use plain English to find code, making the system accessible to all skill levels.
-        - **Contextual Awareness:** By leveraging embeddings, the system understands synonyms, paraphrases, and related concepts.
-
-        **Example:**  
-        ```python
-        # Semantic search
-        query_embedding = model.encode([query])[0]
-        distances, indices = index.search(query_embedding, k)
-        ```
-
-        ---
-        ### Step 5: Analytics & Insights - Going Beyond Search
-
-        **Objective:**  
-        To leverage the embeddings and structured data for higher-level codebase analysis.
-
-        **How it works:**  
-        - **Clustering:** We use the `KMeans` algorithm on the code embeddings. This automatically groups semantically related functions and classes together. For example, all data loading and processing functions might end up in the same cluster.
-        - **Dimensionality Reduction:** The embeddings are high-dimensional (384 dimensions for this model), which we can't visualize. We use **PCA (Principal Component Analysis)** to reduce them to 2 dimensions. This allows us to plot the chunks on a scatter plot, where proximity indicates semantic similarity.
-        - **Pattern Analysis:** We can easily calculate metrics like the number of classes vs. functions, the average function length, comment density, and cyclomatic complexity, because we already parsed this data in Step 1.
-        - **Dependency Analysis:** By analyzing imports, function calls, and inheritance, we can visualize and understand the relationships within the codebase.
-
-        **Why is this important?**  
-        - **Bird's-Eye View:** This provides a "bird's-eye view" of the codebase. It can help identify architectural patterns, find areas of related functionality, or spot code that might be overly complex or too long.
-        - **Quality Assurance:** Metrics like maintainability index, comment ratio, and complexity help identify code that may need refactoring or additional documentation.
-        - **Continuous Improvement:** Recommendations are generated based on analysis, guiding developers to improve code quality and maintainability.
-
-        ---
-        ## Putting It All Together
-
-        The RAG Code Intelligence System is more than just a search tool—it's a comprehensive platform for code understanding, quality assurance, and developer productivity. By combining structural analysis, semantic embeddings, fast vector search, and advanced analytics, it empowers users to:
-
-        - Instantly find relevant code using natural language or code-based queries.
-        - Understand the structure, complexity, and quality of large codebases.
-        - Discover architectural patterns, dependencies, and potential areas for improvement.
-        - Make data-driven decisions about refactoring, documentation, and code organization.
-
-        This approach represents the future of intelligent code analysis and search, leveraging the best of both symbolic and neural methods to help developers write, maintain, and understand code more effectively than ever before.
         """)
-        # ...existing code...
+
+        with st.expander("🔎 **Overview: What is a RAG Code Intelligence System?**", expanded=True):
+            st.markdown("""
+            The **Retrieval-Augmented Generation (RAG) Code Intelligence System** is a multi-stage pipeline that combines:
+            - **Traditional program analysis** (AST parsing, code metrics)
+            - **Modern machine learning** (transformer-based embeddings)
+            - **Advanced information retrieval** (vector search, clustering, analytics)
+
+            This system is inspired by tools like GitHub Copilot and is designed to help developers, reviewers, and engineering leaders **understand, search, and improve code at scale**.
+
+            **Key Stages:**
+            1. Parsing & Chunking
+            2. Embedding
+            3. Indexing & Storage
+            4. Retrieval & Search
+            5. Analytics & Insights
+            """)
+
+        with st.expander("1️⃣ Parsing & Chunking - Understanding Code Structure", expanded=False):
+            st.markdown("""
+            **Objective:**  
+            Break down code into logical, meaningful units ("chunks") such as functions, classes, imports, and variables.
+
+            **How it works:**
+            - Uses Python's `ast` (Abstract Syntax Tree) module to parse code into a tree structure.
+            - Walks the AST to extract:
+                - Function definitions (with parameters, decorators, docstrings, etc.)
+                - Class definitions (with inheritance, methods, properties)
+                - Import statements
+                - Module-level variables and constants
+            - Each chunk is annotated with rich metadata: name, type, start/end lines, complexity, comments, etc.
+
+            **Why is this important?**
+            - **Precision:** Extracts semantically complete units, not just lines or blocks.
+            - **Rich Metadata:** Enables advanced analytics and search.
+            - **Extensibility:** Can be extended to extract call graphs, inheritance, and more.
+
+            **Example:**
+            ```python
+            import ast
+            tree = ast.parse(code)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef):
+                    # Extract function details
+                    ...
+                elif isinstance(node, ast.ClassDef):
+                    # Extract class details
+                    ...
+            ```
+            """)
+
+            with st.expander("🔬 Advanced: What is an AST and why use it?"):
+                st.markdown("""
+                - An **Abstract Syntax Tree (AST)** is a tree representation of the source code structure.
+                - Each node represents a construct (function, class, assignment, etc.).
+                - AST parsing is robust to formatting, whitespace, and comments.
+                - Enables static analysis, code transformation, and deep inspection.
+                """)
+
+            with st.expander("🧮 Metrics Extracted at this Stage"):
+                st.markdown("""
+                - **Cyclomatic Complexity**: Measures the number of independent paths through code.
+                - **Comment Ratio**: Fraction of lines that are comments.
+                - **Maintainability Index**: Composite score based on complexity, comments, and length.
+                - **Chunk Type Distribution**: Counts of functions, classes, imports, etc.
+                """)
+
+        with st.expander("2️⃣ Embedding - Turning Code into Semantic Vectors", expanded=False):
+            st.markdown("""
+            **Objective:**  
+            Convert code chunks into high-dimensional vectors ("embeddings") that capture their semantic meaning.
+
+            **How it works:**
+            - Uses a pre-trained transformer model (`all-MiniLM-L6-v2` from `sentence-transformers`).
+            - Each chunk is enriched with metadata (type, name, parameters, decorators, docstring).
+            - The model encodes this text into a vector (typically 384 dimensions).
+            - Embeddings are cached and generated in batches for efficiency.
+
+            **Why is this important?**
+            - **Semantic Understanding:** Similar code (by meaning, not just words) gets similar vectors.
+            - **Natural Language Support:** Enables searching code with plain English queries.
+            - **Transfer Learning:** Leverages knowledge from massive code and text corpora.
+
+            **Example:**
+            ```python
+            from sentence_transformers import SentenceTransformer
+            model = SentenceTransformer("all-MiniLM-L6-v2")
+            embedding = model.encode("Type: function Name: add Content: def add(a, b): ...")
+            ```
+            """)
+
+            with st.expander("🧠 What is a Transformer Embedding?"):
+                st.markdown("""
+                - A **transformer** is a neural network architecture designed for understanding sequences (text, code).
+                - **Embeddings** are dense vector representations capturing meaning and context.
+                - Pre-trained models can generalize to new code and queries.
+                """)
+
+            with st.expander("⚡ Performance Tips"):
+                st.markdown("""
+                - Embeddings are cached using a hash of the chunk text.
+                - Batch processing (32 chunks at a time) speeds up embedding generation.
+                """)
+
+        with st.expander("3️⃣ Indexing & Storage - Creating a Searchable Code Library", expanded=False):
+            st.markdown("""
+            **Objective:**  
+            Store embeddings in a database that supports fast similarity search.
+
+            **How it works:**
+            - Uses **FAISS** (Facebook AI Similarity Search) for vector indexing.
+            - Embeddings are normalized (L2) for cosine similarity.
+            - Supports multiple index types:
+                - `IndexFlatIP`: Exact search (cosine similarity)
+                - `IndexPQ`: Quantized, for large datasets
+                - (Optionally) HNSW for approximate search
+            - All code chunks and their embeddings are stored for retrieval.
+
+            **Why is this important?**
+            - **Speed:** Finds nearest neighbors in milliseconds, even for thousands of chunks.
+            - **Scalability:** Handles large codebases efficiently.
+            - **Flexibility:** Can switch between exact and approximate search.
+
+            **Example:**
+            ```python
+            import faiss
+            faiss.normalize_L2(embeddings)
+            index = faiss.IndexFlatIP(embedding_dim)
+            index.add(embeddings.astype('float32'))
+            ```
+            """)
+
+            with st.expander("🗄️ What is FAISS and why use it?"):
+                st.markdown("""
+                - **FAISS** is a library for efficient similarity search and clustering of dense vectors.
+                - Used by leading AI search and recommendation systems.
+                - Supports CPU and GPU acceleration.
+                """)
+
+        with st.expander("4️⃣ Retrieval & Search - Finding Relevant Code", expanded=False):
+            st.markdown("""
+            **Objective:**  
+            Retrieve the most relevant code chunks for a user's query (in natural language or code).
+
+            **How it works:**
+            1. User enters a query (e.g., "function that cleans data").
+            2. The query is embedded using the same transformer model.
+            3. The embedding is searched against the FAISS index.
+            4. Top-k most similar code chunks are returned, ranked by similarity.
+            5. Results can be filtered by type, complexity, or quality.
+
+            **Why is this important?**
+            - **Semantic Search:** Finds code by meaning, not just keywords.
+            - **Natural Language:** Users don't need to know exact function names.
+            - **Contextual Awareness:** Handles synonyms, paraphrases, and related concepts.
+
+            **Example:**
+            ```python
+            query_embedding = model.encode([query])[0]
+            distances, indices = index.search(query_embedding, k)
+            ```
+            """)
+
+            with st.expander("🔍 Advanced: Filtering and Ranking"):
+                st.markdown("""
+                - Results can be filtered by:
+                    - Chunk type (function, class, etc.)
+                    - Maximum complexity
+                    - Minimum quality score
+                - Each result includes:
+                    - Name, type, similarity score
+                    - Complexity, maintainability, parameters, decorators
+                """)
+
+        with st.expander("5️⃣ Analytics & Insights - Understanding the Codebase", expanded=False):
+            st.markdown("""
+            **Objective:**  
+            Provide high-level analytics, clustering, and actionable insights about the codebase.
+
+            **How it works:**
+            - **Clustering:** Uses KMeans on embeddings to group related chunks.
+            - **Dimensionality Reduction:** Uses PCA to visualize clusters in 2D.
+            - **Complexity & Quality Metrics:** Calculates averages, distributions, and highlights outliers.
+            - **Dependency Analysis:** Extracts call graphs, import graphs, and inheritance relationships.
+            - **Recommendations:** Suggests improvements based on analysis (e.g., refactor complex code, add comments).
+
+            **Why is this important?**
+            - **Bird's-Eye View:** See structure, hotspots, and patterns at a glance.
+            - **Quality Assurance:** Identify code that needs refactoring or documentation.
+            - **Continuous Improvement:** Data-driven recommendations for maintainability.
+
+            **Example:**
+            ```python
+            # KMeans clustering
+            kmeans = KMeans(n_clusters=8)
+            labels = kmeans.fit_predict(embeddings)
+            # PCA for visualization
+            pca = PCA(n_components=2)
+            reduced = pca.fit_transform(embeddings)
+            ```
+            """)
+
+            with st.expander("📈 Visualizations Provided"):
+                st.markdown("""
+                - **Complexity Distribution:** Bar chart of chunk complexity levels.
+                - **Complexity Heatmap:** Visualizes complexity per chunk.
+                - **Semantic Clustering:** 2D scatter plot of code clusters.
+                - **Call Graph:** Network diagram of function/method calls.
+                """)
+
+            with st.expander("💡 Example Recommendations"):
+                st.markdown("""
+                - "Increase code comments and improve maintainability for better quality."
+                - "Refactor highly complex functions/classes to reduce cyclomatic complexity."
+                - "Consider using classes for better code organization and reusability."
+                - "Review import statements for possible redundancy or unused imports."
+                """)
+
+        with st.expander("🧩 Putting It All Together", expanded=False):
+            st.markdown("""
+            The RAG Code Intelligence System is more than just a search tool—it's a comprehensive platform for code understanding, quality assurance, and developer productivity.
+
+            **By combining:**
+            - Structural analysis (AST parsing)
+            - Semantic embeddings (transformers)
+            - Fast vector search (FAISS)
+            - Advanced analytics (clustering, metrics, recommendations)
+
+            **It empowers users to:**
+            - Instantly find relevant code using natural language or code-based queries.
+            - Understand the structure, complexity, and quality of large codebases.
+            - Discover architectural patterns, dependencies, and potential areas for improvement.
+            - Make data-driven decisions about refactoring, documentation, and code organization.
+
+            **This approach represents the future of intelligent code analysis and search.**
+            """)
 
 if __name__ == "__main__":
     main()
