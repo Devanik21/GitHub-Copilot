@@ -19,7 +19,6 @@ import tempfile # New: For creating temporary files for linting
 import os       # New: For file system operations (e.g., deleting temp files)
 import subprocess # New: For running external commands like flake8
 
-import google.generativeai as genai # New: For LLM integration
 # Configure page
 st.set_page_config(
     page_title="RAG Code Analysis System",
@@ -388,26 +387,13 @@ class CodeLinter:
 class CodeRAGSystem:
     """Complete RAG system for code analysis"""
     
-    def __init__(self, api_key: str = None):
+    def __init__(self):
         self.parser = CodeParser()
         self.embedding_generator = EmbeddingGenerator()
         self.vector_db = VectorDatabase(self.embedding_generator.embedding_dim)
         self.linter = CodeLinter() # New: Initialize the linter
         self.chunks = []
         self.linting_results = [] # New: Store linting results
-        self.llm_model = self._initialize_llm(api_key)
-
-    def _initialize_llm(self, api_key: str):
-        """Initializes the Gemini LLM if an API key is provided."""
-        if not api_key:
-            return None
-        try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            return model
-        except Exception as e:
-            st.warning(f"Could not initialize Gemini model: {e}. AI generation features will be disabled.")
-            return None
     
     def process_code(self, code: str, file_path: str = "input.py") -> Dict:
         """Process code through the complete RAG pipeline"""
@@ -516,60 +502,54 @@ class CodeRAGSystem:
         return patterns
     
     def suggest_refactoring(self, chunk: CodeChunk) -> str:
-        """Provides a refactoring suggestion using an LLM if available, otherwise falls back to rules."""
-        if self.llm_model:
-            prompt = f"""
-            You are an expert code reviewer. Analyze the following Python code chunk and provide a concise refactoring suggestion.
-            Focus on improving readability, maintainability, or performance.
-            If the code is already good, say so.
-
-            Code Chunk Name: {chunk.name}
-            Type: {chunk.chunk_type}
-            Complexity Score: {chunk.complexity_score:.1f}
-            Lines: {chunk.end_line - chunk.start_line + 1}
-
-            ```python
-            {chunk.content}
-            ```
-
-            Suggestion:
-            """
-            return self._generate_llm_response(prompt)
-        else:
-            # Fallback to rule-based suggestions
-            if chunk.chunk_type == 'function' and chunk.complexity_score > 5:
-                return f"Function '{chunk.name}' has high complexity ({chunk.complexity_score:.1f}). Consider breaking it down into smaller, more focused functions. (Rule-based suggestion)"
-            if chunk.chunk_type == 'function' and (chunk.end_line - chunk.start_line + 1) > 30:
-                return f"Function '{chunk.name}' is quite long ({chunk.end_line - chunk.start_line + 1} lines). Breaking it into smaller parts can improve readability. (Rule-based suggestion)"
-            return "No specific refactoring suggestions for this chunk. Provide an API key for AI-powered suggestions. (Rule-based suggestion)"
+        """Provides a simple refactoring suggestion based on chunk properties (rule-based for demo)."""
+        if chunk.chunk_type == 'function' and chunk.complexity_score > 5:
+            return f"Function '{chunk.name}' has high complexity ({chunk.complexity_score:.1f}). Consider breaking it down into smaller, more focused functions."
+        if chunk.chunk_type == 'function' and (chunk.end_line - chunk.start_line + 1) > 30:
+            return f"Function '{chunk.name}' is quite long ({chunk.end_line - chunk.start_line + 1} lines). Breaking it into smaller parts can improve readability."
+        if chunk.chunk_type == 'class' and chunk.complexity_score > 10:
+            return f"Class '{chunk.name}' seems overly complex ({chunk.complexity_score:.1f}). Evaluate if it adheres to the Single Responsibility Principle."
+        if chunk.chunk_type == 'docstring' and len(chunk.content.split('\n')) < 3:
+            return f"Docstring for '{chunk.name}' is very short. Consider adding more details about parameters, return values, and exceptions."
+        if chunk.chunk_type == 'comment' and len(chunk.content.split('\n')) < 2:
+            return f"Comment block '{chunk.name}' is very short. Ensure comments provide sufficient context or explanation."
+        return "No specific refactoring suggestions for this chunk at the moment."
 
     def generate_code_snippet(self, prompt: str) -> str:
-        """Generates code using an LLM if available, otherwise falls back to a simulated response."""
-        if self.llm_model:
-            # We can enhance this by providing retrieved context from the codebase
-            # For now, we'll just use the prompt directly.
-            llm_prompt = f"""
-            You are a helpful code generation assistant.
-            Generate a Python code snippet for the following request.
-            Provide only the raw code, without any explanation before or after the code block.
+        """Simulates code generation based on a prompt (rule-based for demo)."""
+        prompt_lower = prompt.lower()
+        if "function to add two numbers" in prompt_lower or "add numbers" in prompt_lower:
+            return """def add_numbers(a: int, b: int) -> int:
+    \"\"\"Adds two numbers and returns the sum.\"\"\"
+    return a + b"""
+        elif "class for a simple counter" in prompt_lower or "counter class" in prompt_lower:
+            return """class Counter:
+    \"\"\"A simple counter class.\"\"\"
+    def __init__(self, initial_value: int = 0):
+        self._count = initial_value
 
-            Request: "{prompt}"
+    def increment(self):
+        self._count += 1
 
-            Python Code:
-            """
-            return self._generate_llm_response(llm_prompt)
+    def get_count(self) -> int:
+        return self._count"""
+        elif "loop through list" in prompt_lower or "iterate list" in prompt_lower:
+            return """my_list = [1, 2, 3, 4, 5]
+for item in my_list:
+    print(item)"""
+        elif "read csv" in prompt_lower:
+            return """import pandas as pd
+
+def read_csv_file(file_path: str) -> pd.DataFrame:
+    \"\"\"Reads a CSV file into a pandas DataFrame.\"\"\"
+    try:
+        df = pd.read_csv(file_path)
+        return df
+    except FileNotFoundError:
+        print(f"Error: File not found at {file_path}")
+        return pd.DataFrame()"""
         else:
-            return f"// AI Code Generation is disabled. Please provide a Gemini API key.\n// Simulated response for: '{prompt}'\npass"
-
-    def _generate_llm_response(self, prompt: str) -> str:
-        """Helper function to call the LLM and handle errors."""
-        if not self.llm_model:
-            return "LLM not initialized. Please provide a valid API key in the sidebar."
-        try:
-            response = self.llm_model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            return f"An error occurred while communicating with the LLM: {e}"
+            return f"// Simulated code generation for: '{prompt}'\n// (In a real system, an LLM would generate this.)\npass"
 
 # Initialize the RAG system
 @st.cache_resource
@@ -583,7 +563,6 @@ def main():
     # Sidebar configuration
     st.sidebar.header("Configuration")
     max_results = st.sidebar.slider("Max Search Results", 1, 10, 5)
-    api_key = st.sidebar.text_input("Enter Gemini API Key (for AI features)", type="password")
     
     # LLM Techniques Information
     with st.sidebar.expander("🧠 LLM Techniques Used"):
@@ -599,17 +578,14 @@ def main():
         """)
     
         st.markdown("""
-        - **Static Code Analysis (Linting)**: Identifying potential issues
-        - **AI-Powered Generation/Refactoring**: Using an LLM for code assistance
+        - **Static Code Analysis (Linting)**: Identifying potential issues # New
+        - **Simulated Code Generation/Refactoring**: AI-powered assistance # New
         """)
 
-    # Re-initialize the system if the API key changes
-    # A simple way to handle this is to use the key in the cache key, but for this app,
-    # we can just re-create it. A more robust app might manage state better.
-    rag_system = CodeRAGSystem(api_key=api_key)
+    rag_system = get_rag_system()
     
     # Main interface tabs
-    tab1, tab2, tab3, tab4, tab5,tab6 = st.tabs(["📝 Code Input", "🔍 Search & Retrieval", "📊 Code Analytics", "🛠️ Code Review & Assist", "🎯 System Demo","🧠 LLM Workflow"]) # Added tab4, renamed tab4 to tab5
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Code Input", "🔍 Search & Retrieval", "📊 Code Analytics", "🛠️ Code Review & Assist", "🎯 System Demo"]) # Added tab4, renamed tab4 to tab5
     
     with tab1:
         st.header("Code Parsing and Chunking")
@@ -868,12 +844,9 @@ def process_batch(file_paths: List[str]) -> Optional[pd.DataFrame]:
                 st.info("No chunks available for refactoring suggestions.")
 
             st.markdown("---")
-            
-            st.subheader("AI Code Generation")
-            if rag_system.llm_model:
-                st.markdown("*(This feature uses the Gemini API to generate code based on your prompt.)*")
-            else:
-                st.markdown("*(This feature is currently in **simulation mode**. Enter a Gemini API key in the sidebar to enable live AI code generation.)*")
+
+            st.subheader("Simulated Code Generation")
+            st.markdown("*(This feature simulates AI code generation. In a real system, a powerful LLM would be used.)*")
             gen_prompt = st.text_area(
                 "Enter a prompt for code generation:",
                 value="function to add two numbers",
@@ -985,52 +958,6 @@ def process_batch(file_paths: List[str]) -> Optional[pd.DataFrame]:
                 st.metric("Vector DB Size", len(rag_system.vector_db.chunks))
             with col4: # New metric
                 st.metric("Linting Issues", len(rag_system.linting_results))
-
-    with tab6:
-        st.header("🧠 LLM Workflow")
-        st.markdown("""
-        This section explains how Large Language Models (LLMs) are integrated into the RAG Code Analysis System.
-
-        **Workflow Steps:**
-        1. **Code Parsing:** Your code is parsed into logical chunks (functions, classes, etc.) using AST and tokenization.
-        2. **Embedding Generation:** Each chunk is converted into a semantic vector using a transformer model.
-        3. **Vector Storage:** Embeddings are stored in a FAISS vector database for efficient similarity search.
-        4. **Semantic Search:** Natural language queries are embedded and matched against code chunks for retrieval.
-        5. **LLM-Powered Tasks:**
-            - **Refactoring Suggestions:** If a Gemini API key is provided, the LLM reviews code chunks and suggests improvements.
-            - **Code Generation:** The LLM generates code snippets based on user prompts.
-        6. **Static Analysis:** Linting is performed for code quality, independent of LLMs.
-        7. **Visualization & Insights:** Complexity, clustering, and code patterns are visualized for deeper understanding.
-
-        ---
-        """)
-        st.subheader("LLM Integration Points")
-        st.markdown("""
-        - **Refactoring Suggestions:** Uses Gemini LLM to analyze code chunks and provide actionable feedback.
-        - **Code Generation:** Uses Gemini LLM to generate Python code from natural language prompts.
-        - **Fallback:** If no API key is provided, rule-based or simulated responses are used.
-
-        **Note:**  
-        - LLM features require a valid Gemini API key (set in the sidebar).
-        - All LLM calls are stateless and do not store your code or prompts.
-        """)
-        st.subheader("Example LLM Prompt")
-        st.code(
-            '''You are an expert code reviewer. Analyze the following Python code chunk and provide a concise refactoring suggestion.
-
-Code Chunk Name: {chunk.name}
-Type: {chunk.chunk_type}
-Complexity Score: {chunk.complexity_score:.1f}
-Lines: {chunk.end_line - chunk.start_line + 1}
-
-```python
-{chunk.content}
-```
-
-Suggestion:''',
-            language="markdown"
-        )
-        st.info("This prompt is sent to the Gemini LLM for each code chunk when generating refactoring suggestions.")
 
 if __name__ == "__main__":
     main()
