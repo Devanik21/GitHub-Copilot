@@ -287,9 +287,13 @@ class CodeRAGSystem:
             "has_classes": any(c.chunk_type == 'class' for c in self.chunks),
             "has_functions": any(c.chunk_type == 'function' for c in self.chunks),
             "import_count": sum(1 for c in self.chunks if c.chunk_type == 'import'),
-            "avg_function_length": np.mean([c.end_line - c.start_line + 1 
-                                         for c in self.chunks if c.chunk_type == 'function'])
         }
+
+        function_lengths = [c.end_line - c.start_line + 1
+                            for c in self.chunks if c.chunk_type == 'function']
+        
+        patterns["avg_function_length"] = np.mean(function_lengths) if function_lengths else 0.0
+
         return patterns
 
 # Initialize the RAG system
@@ -321,7 +325,7 @@ def main():
     rag_system = get_rag_system()
     
     # Main interface tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["📝 Code Input", "🔍 Search & Retrieval", "📊 Code Analytics", "🎯 System Demo"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Code Input", "🔍 Search & Retrieval", "📊 Code Analytics", "🎯 System Demo", "⚙️ How It Works"])
     
     with tab1:
         st.header("Code Parsing and Chunking")
@@ -619,6 +623,106 @@ def process_batch(file_paths: List[str]) -> Optional[pd.DataFrame]:
                 st.metric("Embedding Dimension", rag_system.embedding_generator.embedding_dim)
             with col3:
                 st.metric("Vector DB Size", len(rag_system.vector_db.chunks))
+
+    with tab5:
+        st.header("⚙️ How It Works: A Deep Dive into the RAG System")
+        st.markdown("""
+        This tab provides a detailed, step-by-step explanation of the technologies and processes used in this application. 
+        Use this as a guide to understand how we turn raw code into a searchable, analyzable knowledge base.
+        """)
+
+        # Step 1: Parsing
+        with st.expander("Step 1: Parsing & Chunking - Understanding Code Structure", expanded=True):
+            st.markdown("""
+            **Objective:** To break down a large, unstructured block of code into smaller, logical, and meaningful units called "chunks".
+
+            - **What's Happening?**
+                - We use Python's built-in `ast` (Abstract Syntax Tree) module. An AST is a tree representation of the code's structure, where each node represents a construct like a function definition, a class, or an import statement.
+                - By "walking" this tree, we can precisely identify and extract these constructs, along with their metadata (e.g., name, start/end line numbers).
+            
+            - **Why is this important?**
+                - **Precision:** Instead of blindly splitting a file by lines or blank spaces, AST parsing gives us semantically complete units. A function chunk contains the entire function body.
+                - **Metadata:** We capture crucial context, like the name of the function (`node.name`) or its location in the file.
+                - **Analysis:** This structured data allows us to perform further analysis, like calculating the **Cyclomatic Complexity** for each function or class to measure its potential complexity and maintainability.
+
+            **In this app:** The `CodeParser` class is responsible for this step. When you click "Process Code", it's the first thing that runs.
+            """)
+            st.code("""
+# Simplified view of AST parsing
+for node in ast.walk(tree):
+    if isinstance(node, ast.FunctionDef):
+        # Extract function content, name, and line numbers
+        ...
+    elif isinstance(node, ast.ClassDef):
+        # Extract class content, name, and line numbers
+        ...
+            """, language='python')
+
+        # Step 2: Embedding
+        with st.expander("Step 2: Embedding - Turning Code into Numbers", expanded=False):
+            st.markdown("""
+            **Objective:** To convert the text-based code chunks into numerical representations (vectors) that capture their semantic meaning.
+
+            - **What's Happening?**
+                - We use a pre-trained **Transformer model** from the `sentence-transformers` library (specifically, `all-MiniLM-L6-v2`).
+                - This model has been trained on a massive amount of text and has learned to represent the meaning of sentences as high-dimensional vectors.
+                - Before embedding, we enrich the code content with its metadata: `f"Type: {chunk.chunk_type} Name: {chunk.name} Content: {chunk.content}"`. This gives the model more context.
+
+            - **Why is this important?**
+                - **Semantic Understanding:** The resulting vectors (embeddings) place chunks with similar meanings close to each other in the vector space. For example, `def load_data()` and `def read_file()` would have similar embeddings, even though they use different words.
+                - **Machine-Readable:** Computers can't compare text directly for meaning. But they are excellent at comparing numerical vectors. This step makes semantic search possible.
+
+            **In this app:** The `EmbeddingGenerator` class handles this. It takes the list of `CodeChunk` objects and adds an `embedding` attribute to each one.
+            """)
+
+        # Step 3: Indexing
+        with st.expander("Step 3: Indexing & Storage - Creating a Searchable Code Library", expanded=False):
+            st.markdown("""
+            **Objective:** To store the generated embeddings in a specialized database that allows for extremely fast similarity searches.
+
+            - **What's Happening?**
+                - We use `faiss` (Facebook AI Similarity Search), a high-performance library for vector search.
+                - We create an `IndexFlatIP` index. "IP" stands for Inner Product, which is a mathematical operation to measure similarity between vectors. For normalized vectors (which we use), this is equivalent to **Cosine Similarity**.
+                - All the embeddings from our code chunks are added to this index.
+
+            - **Why is this important?**
+                - **Speed:** Searching through thousands or millions of vectors one-by-one would be too slow. `faiss` uses optimized algorithms to find the "nearest neighbors" to a query vector almost instantly.
+                - **Scalability:** This approach scales well to very large codebases.
+
+            **In this app:** The `VectorDatabase` class wraps the `faiss` index. The `add_chunks` method populates the index.
+            """)
+
+        # Step 4: Retrieval
+        with st.expander("Step 4: Retrieval & Search - Finding What You Need", expanded=False):
+            st.markdown("""
+            **Objective:** To find the most relevant code chunks based on a user's natural language query.
+
+            - **What's Happening?**
+                1.  The user's search query (e.g., "function that cleans data") is converted into an embedding using the *exact same* model from Step 2.
+                2.  This new "query vector" is then used to search the `faiss` index.
+                3.  `faiss` returns the top `k` most similar code chunk embeddings from the database, along with their similarity scores.
+
+            - **Why is this important?**
+                - This is the core of the **Retrieval** in RAG. It allows you to search based on *intent* and *meaning*, not just keywords. You don't need to remember the exact function name; you can describe what it does.
+
+            **In this app:** The `search_code` method in `CodeRAGSystem` performs these steps. The results are then displayed in the "Search & Retrieval" tab.
+            """)
+
+        # Step 5: Analytics
+        with st.expander("Bonus Step: Analytics & Insights - Going Beyond Search", expanded=False):
+            st.markdown("""
+            **Objective:** To leverage the embeddings and structured data for higher-level codebase analysis.
+
+            - **What's Happening?**
+                - **Clustering:** We use the `KMeans` algorithm on the code embeddings. This automatically groups semantically related functions and classes together. For example, all data loading and processing functions might end up in the same cluster.
+                - **Visualization:** The embeddings are high-dimensional (384 dimensions for this model), which we can't visualize. We use **PCA (Principal Component Analysis)** to reduce them to 2 dimensions. This allows us to plot the chunks on a scatter plot, where proximity indicates semantic similarity.
+                - **Pattern Analysis:** We can easily calculate metrics like the number of classes vs. functions, or the average function length, because we already parsed this data in Step 1.
+
+            - **Why is this important?**
+                - This provides a "bird's-eye view" of the codebase. It can help identify architectural patterns, find areas of related functionality, or spot code that might be overly complex or too long.
+
+            **In this app:** The `generate_code_insights` method produces this data, which is then visualized in the "Code Analytics" tab.
+            """)
 
 if __name__ == "__main__":
     main()
