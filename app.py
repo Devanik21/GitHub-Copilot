@@ -1031,7 +1031,7 @@ class Calculator:
                 marker=dict(size=50, color=f'rgba(55, 128, 191, {0.7 + i*0.05})'),
                 text=step,
                 textposition="middle center",
-                name='',  # <-- Ensure unique/empty name to avoid duplicate element IDs
+                name=step,
                 showlegend=False
             ))
             if i < len(steps) - 1:
@@ -1052,7 +1052,8 @@ class Calculator:
             yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
             height=200
         )
-        st.plotly_chart(fig, use_container_width=True)
+        # Ensure unique chart rendering
+        st.plotly_chart(fig, use_container_width=True, key="rag_pipeline_flow")
         st.subheader("Advanced LLM Techniques")
         col1, col2 = st.columns(2)
         with col1:
