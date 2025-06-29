@@ -1031,7 +1031,7 @@ class Calculator:
                 marker=dict(size=50, color=f'rgba(55, 128, 191, {0.7 + i*0.05})'),
                 text=step,
                 textposition="middle center",
-                name=step,
+                name='',  # <-- Ensure unique/empty name to avoid duplicate element IDs
                 showlegend=False
             ))
             if i < len(steps) - 1:
