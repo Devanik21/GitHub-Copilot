@@ -868,12 +868,22 @@ def main():
     k_results = st.sidebar.slider("Top-K Results", 1, 10, 5)
     show_analytics = st.sidebar.checkbox("Show Analytics", value=True)
 
-    if uploaded_file or example_code:
-        if uploaded_file:
-            code = uploaded_file.read().decode("utf-8")
-            file_path = uploaded_file.name
-        else:
-            code = '''
+    # --- Add main tabs for new features ---
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📝 Code Input & Search", 
+        "📊 Code Analytics", 
+        "🎯 System Demo", 
+        "⚙️ How It Works"
+    ])
+
+    with tab1:
+        # --- Original code input, analytics, and search UI ---
+        if uploaded_file or example_code:
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = '''
 def add(a, b):
     """Add two numbers."""
     return a + b
@@ -882,67 +892,302 @@ class Calculator:
     def multiply(self, x, y):
         # Multiplies two numbers
         return x * y
-            '''
-            file_path = "example.py"
+                '''
+                file_path = "example.py"
 
-        rag = ComprehensiveRAGSystem()
-        analysis = rag.process_code(code, file_path)
+            rag = ComprehensiveRAGSystem()
+            analysis = rag.process_code(code, file_path)
 
-        if "error" in analysis:
-            st.error(analysis["error"])
-            return
+            if "error" in analysis:
+                st.error(analysis["error"])
+                return
 
-        st.subheader("Code Overview")
-        st.code(code, language="python")
+            st.subheader("Code Overview")
+            st.code(code, language="python")
 
-        if show_analytics:
-            st.subheader("📊 Codebase Analytics")
+            if show_analytics:
+                st.subheader("📊 Codebase Analytics")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Chunks", analysis["basic_stats"]["total_chunks"])
+                    st.metric("Functions", analysis["basic_stats"]["functions_count"])
+                with col2:
+                    st.metric("Classes", analysis["basic_stats"]["classes_count"])
+                    st.metric("Imports", analysis["basic_stats"]["imports_count"])
+                with col3:
+                    st.metric("Avg. Lines/Chunk", f"{analysis['basic_stats']['avg_lines_per_chunk']:.1f}")
+                    st.metric("Total Lines", analysis["basic_stats"]["total_lines"])
+
+                st.markdown("#### Complexity Distribution")
+                complexity_dist = analysis["complexity_analysis"]["distribution"]
+                st.bar_chart(pd.DataFrame.from_dict(complexity_dist, orient="index", columns=["Count"]))
+
+                st.markdown("#### Quality Metrics")
+                st.json(analysis["quality_metrics"])
+
+                st.markdown("#### Structure Analysis")
+                st.json(analysis["structure_analysis"])
+
+                st.markdown("#### Recommendations")
+                for rec in analysis["recommendations"]:
+                    st.info(rec)
+
+                if analysis["semantic_clustering"]:
+                    st.markdown("#### Semantic Clustering (2D PCA)")
+                    clusters = pd.DataFrame(analysis["semantic_clustering"]["clusters"])
+                    fig = px.scatter(
+                        clusters, x="x", y="y", color="cluster", hover_data=["name", "type"],
+                        title="Semantic Clusters of Code Chunks"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+            if search_query:
+                st.subheader(f"🔎 Semantic Search Results for: '{search_query}'")
+                results = rag.search_code(search_query, k=k_results)
+                for res in results:
+                    chunk = res["chunk"]
+                    st.markdown(
+                        f"<div class='metric-card'><b>{chunk.name}</b> "
+                        f"({chunk.chunk_type}, Complexity: <span class='complexity-indicator complexity-{chunk.complexity_category.lower()}'>{chunk.complexity_category}</span>)<br>"
+                        f"<pre>{chunk.content}</pre>"
+                        f"<small>Similarity: {res['similarity']:.3f} | Quality: {res['quality_score']:.2f} | Lines: {res['lines']}</small></div>",
+                        unsafe_allow_html=True
+                    )
+        else:
+            st.info("Upload a Python file or use example code to get started.")
+
+    with tab2:
+        st.header("📊 Code Analytics & Insights")
+        # --- Show analytics if code is processed ---
+        if uploaded_file or example_code:
+            rag = ComprehensiveRAGSystem()
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = '''
+def add(a, b):
+    """Add two numbers."""
+    return a + b
+
+class Calculator:
+    def multiply(self, x, y):
+        # Multiplies two numbers
+        return x * y
+                '''
+                file_path = "example.py"
+            analysis = rag.process_code(code, file_path)
+            if "error" in analysis:
+                st.error(analysis["error"])
+            else:
+                st.subheader("Complexity Analysis")
+                stats = analysis["complexity_analysis"]
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Mean", f"{stats['mean']:.2f}")
+                with col2:
+                    st.metric("Median", f"{stats['median']:.2f}")
+                with col3:
+                    st.metric("Max", f"{stats['max']:.0f}")
+                with col4:
+                    st.metric("Min", f"{stats['min']:.0f}")
+
+                st.subheader("Quality Metrics")
+                st.json(analysis["quality_metrics"])
+
+                st.subheader("Structure Patterns")
+                st.json(analysis["structure_analysis"])
+
+                if analysis["semantic_clustering"]:
+                    st.subheader("Semantic Clustering Visualization")
+                    clusters = pd.DataFrame(analysis["semantic_clustering"]["clusters"])
+                    fig = px.scatter(
+                        clusters, x="x", y="y", color="cluster", hover_data=["name", "type"],
+                        title="Semantic Clusters of Code Chunks"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Process some code in the first tab to see analytics.")
+
+    with tab3:
+        st.header("🎯 RAG System Architecture Demo")
+        st.markdown("""
+        This application demonstrates a complete **Retrieval-Augmented Generation (RAG)** system 
+        specifically designed for code analysis, incorporating the same advanced techniques used in 
+        AI coding assistants like GitHub Copilot.
+        """)
+        st.subheader("System Architecture")
+        # --- Simple flow diagram using Plotly ---
+        import plotly.graph_objects as go
+        steps = [
+            "Code Input", "AST Parsing", "Chunk Extraction", 
+            "Embedding Generation", "Vector Storage", "Semantic Search", "Result Generation"
+        ]
+        fig = go.Figure()
+        for i, step in enumerate(steps):
+            fig.add_trace(go.Scatter(
+                x=[i], y=[0],
+                mode='markers+text',
+                marker=dict(size=50, color=f'rgba(55, 128, 191, {0.7 + i*0.05})'),
+                text=step,
+                textposition="middle center",
+                name=step,
+                showlegend=False
+            ))
+            if i < len(steps) - 1:
+                fig.add_annotation(
+                    x=i+0.4, y=0,
+                    ax=i+0.6, ay=0,
+                    xref='x', yref='y',
+                    axref='x', ayref='y',
+                    arrowhead=2,
+                    arrowsize=1,
+                    arrowwidth=2,
+                    arrowcolor='rgb(55, 128, 191)'
+                )
+        fig.update_layout(
+            title="RAG Pipeline Flow",
+            showlegend=False,
+            xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            height=200
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.subheader("Advanced LLM Techniques")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("""
+            **Core RAG Components:**
+            - **Abstract Syntax Tree (AST) parsing** for structural code understanding
+            - **Semantic embeddings** using transformer models
+            - **Vector similarity search** with FAISS indexing
+            - **Contextual retrieval** for precise code matching
+            """)
+        with col2:
+            st.markdown("""
+            **AI Enhancement Features:**
+            - **Complexity analysis** using cyclomatic complexity
+            - **Code clustering** for organization insights  
+            - **Pattern recognition** for code quality assessment
+            - **Multi-modal search** supporting natural language queries
+            """)
+        # --- Optionally, show stats if code processed ---
+        if uploaded_file or example_code:
+            rag = ComprehensiveRAGSystem()
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = '''
+def add(a, b):
+    """Add two numbers."""
+    return a + b
+
+class Calculator:
+    def multiply(self, x, y):
+        # Multiplies two numbers
+        return x * y
+                '''
+                file_path = "example.py"
+            analysis = rag.process_code(code, file_path)
+            st.subheader("Current Session Statistics")
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Total Chunks", analysis["basic_stats"]["total_chunks"])
-                st.metric("Functions", analysis["basic_stats"]["functions_count"])
+                st.metric("Processed Chunks", analysis["basic_stats"]["total_chunks"])
             with col2:
-                st.metric("Classes", analysis["basic_stats"]["classes_count"])
-                st.metric("Imports", analysis["basic_stats"]["imports_count"])
+                st.metric("Functions", analysis["basic_stats"]["functions_count"])
             with col3:
-                st.metric("Avg. Lines/Chunk", f"{analysis['basic_stats']['avg_lines_per_chunk']:.1f}")
-                st.metric("Total Lines", analysis["basic_stats"]["total_lines"])
+                st.metric("Classes", analysis["basic_stats"]["classes_count"])
 
-            st.markdown("#### Complexity Distribution")
-            complexity_dist = analysis["complexity_analysis"]["distribution"]
-            st.bar_chart(pd.DataFrame.from_dict(complexity_dist, orient="index", columns=["Count"]))
+    with tab4:
+        st.header("⚙️ How It Works: A Deep Dive into the RAG System")
+        st.markdown("""
+        This tab provides a detailed, step-by-step explanation of the technologies and processes used in this application. 
+        Use this as a guide to understand how we turn raw code into a searchable, analyzable knowledge base.
+        """)
+        with st.expander("Step 1: Parsing & Chunking - Understanding Code Structure", expanded=True):
+            st.markdown("""
+            **Objective:** To break down a large, unstructured block of code into smaller, logical, and meaningful units called "chunks".
 
-            st.markdown("#### Quality Metrics")
-            st.json(analysis["quality_metrics"])
+            - **What's Happening?**
+                - We use Python's built-in `ast` (Abstract Syntax Tree) module. An AST is a tree representation of the code's structure, where each node represents a construct like a function definition, a class, or an import statement.
+                - By "walking" this tree, we can precisely identify and extract these constructs, along with their metadata (e.g., name, start/end line numbers).
+            
+            - **Why is this important?**
+                - **Precision:** Instead of blindly splitting a file by lines or blank spaces, AST parsing gives us semantically complete units. A function chunk contains the entire function body.
+                - **Metadata:** We capture crucial context, like the name of the function (`node.name`) or its location in the file.
+                - **Analysis:** This structured data allows us to perform further analysis, like calculating the **Cyclomatic Complexity** for each function or class to measure its potential complexity and maintainability.
 
-            st.markdown("#### Structure Analysis")
-            st.json(analysis["structure_analysis"])
+            **In this app:** The `AdvancedCodeParser` class is responsible for this step. When you process code, it's the first thing that runs.
+            """)
+            st.code("""
+# Simplified view of AST parsing
+for node in ast.walk(tree):
+    if isinstance(node, ast.FunctionDef):
+        # Extract function content, name, and line numbers
+        ...
+    elif isinstance(node, ast.ClassDef):
+        # Extract class content, name, and line numbers
+        ...
+            """, language='python')
+        with st.expander("Step 2: Embedding - Turning Code into Numbers", expanded=False):
+            st.markdown("""
+            **Objective:** To convert the text-based code chunks into numerical representations (vectors) that capture their semantic meaning.
 
-            st.markdown("#### Recommendations")
-            for rec in analysis["recommendations"]:
-                st.info(rec)
+            - **What's Happening?**
+                - We use a pre-trained **Transformer model** from the `sentence-transformers` library (specifically, `all-MiniLM-L6-v2`).
+                - This model has been trained on a massive amount of text and has learned to represent the meaning of sentences as high-dimensional vectors.
+                - Before embedding, we enrich the code content with its metadata: `f"Type: {chunk.chunk_type} Name: {chunk.name} Content: {chunk.content}"`. This gives the model more context.
 
-            if analysis["semantic_clustering"]:
-                st.markdown("#### Semantic Clustering (2D PCA)")
-                clusters = pd.DataFrame(analysis["semantic_clustering"]["clusters"])
-                fig = px.scatter(
-                    clusters, x="x", y="y", color="cluster", hover_data=["name", "type"],
-                    title="Semantic Clusters of Code Chunks"
-                )
-                st.plotly_chart(fig, use_container_width=True)
+            - **Why is this important?**
+                - **Semantic Understanding:** The resulting vectors (embeddings) place chunks with similar meanings close to each other in the vector space. For example, `def load_data()` and `def read_file()` would have similar embeddings, even though they use different words.
+                - **Machine-Readable:** Computers can't compare text directly for meaning. But they are excellent at comparing numerical vectors. This step makes semantic search possible.
 
-        if search_query:
-            st.subheader(f"🔎 Semantic Search Results for: '{search_query}'")
-            results = rag.search_code(search_query, k=k_results)
-            for res in results:
-                chunk = res["chunk"]
-                st.markdown(
-                    f"<div class='metric-card'><b>{chunk.name}</b> "
-                    f"({chunk.chunk_type}, Complexity: <span class='complexity-indicator complexity-{chunk.complexity_category.lower()}'>{chunk.complexity_category}</span>)<br>"
-                    f"<pre>{chunk.content}</pre>"
-                    f"<small>Similarity: {res['similarity']:.3f} | Quality: {res['quality_score']:.2f} | Lines: {res['lines']}</small></div>",
-                    unsafe_allow_html=True
-                )
+            **In this app:** The `EnhancedEmbeddingGenerator` class handles this. It takes the list of `CodeChunk` objects and adds an `embedding` attribute to each one.
+            """)
+        with st.expander("Step 3: Indexing & Storage - Creating a Searchable Code Library", expanded=False):
+            st.markdown("""
+            **Objective:** To store the generated embeddings in a specialized database that allows for extremely fast similarity searches.
+
+            - **What's Happening?**
+                - We use `faiss` (Facebook AI Similarity Search), a high-performance library for vector search.
+                - We create an `IndexFlatIP` index. "IP" stands for Inner Product, which is a mathematical operation to measure similarity between vectors. For normalized vectors (which we use), this is equivalent to **Cosine Similarity**.
+                - All the embeddings from our code chunks are added to this index.
+
+            - **Why is this important?**
+                - **Speed:** Searching through thousands or millions of vectors one-by-one would be too slow. `faiss` uses optimized algorithms to find the "nearest neighbors" to a query vector almost instantly.
+                - **Scalability:** This approach scales well to very large codebases.
+
+            **In this app:** The `AdvancedVectorDatabase` class wraps the `faiss` index. The `add_chunks` method populates the index.
+            """)
+        with st.expander("Step 4: Retrieval & Search - Finding What You Need", expanded=False):
+            st.markdown("""
+            **Objective:** To find the most relevant code chunks based on a user's natural language query.
+
+            - **What's Happening?**
+                1.  The user's search query (e.g., "function that cleans data") is converted into an embedding using the *exact same* model from Step 2.
+                2.  This new "query vector" is then used to search the `faiss` index.
+                3.  `faiss` returns the top `k` most similar code chunk embeddings from the database, along with their similarity scores.
+
+            - **Why is this important?**
+                - This is the core of the **Retrieval** in RAG. It allows you to search based on *intent* and *meaning*, not just keywords. You don't need to remember the exact function name; you can describe what it does.
+
+            **In this app:** The `search_code` method in `ComprehensiveRAGSystem` performs these steps. The results are then displayed in the "Code Input & Search" tab.
+            """)
+        with st.expander("Bonus Step: Analytics & Insights - Going Beyond Search", expanded=False):
+            st.markdown("""
+            **Objective:** To leverage the embeddings and structured data for higher-level codebase analysis.
+
+            - **What's Happening?**
+                - **Clustering:** We use the `KMeans` algorithm on the code embeddings. This automatically groups semantically related functions and classes together. For example, all data loading and processing functions might end up in the same cluster.
+                - **Visualization:** The embeddings are high-dimensional (384 dimensions for this model), which we can't visualize. We use **PCA (Principal Component Analysis)** to reduce them to 2 dimensions. This allows us to plot the chunks on a scatter plot, where proximity indicates semantic similarity.
+                - **Pattern Analysis:** We can easily calculate metrics like the number of classes vs. functions, or the average function length, because we already parsed this data in Step 1.
+
+            - **Why is this important?**
+                - This provides a "bird's-eye view" of the codebase. It can help identify architectural patterns, find areas of related functionality, or spot code that might be overly complex or too long.
+
+            **In this app:** The `_generate_comprehensive_analysis` method produces this data, which is then visualized in the "Code Analytics" tab.
+            """)
 
 if __name__ == "__main__":
     main()
