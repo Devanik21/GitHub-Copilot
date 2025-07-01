@@ -1245,7 +1245,7 @@ class Calculator:
         st.header("⚙️ How It Works: A Deep Dive into the RAG System")
 
         st.markdown("""
-        This tab provides a **super comprehensive, step-by-step explanation** of the technologies and processes used in this application.  
+        This tab provides a **super comprehensive, step-by-step explanation** of the technologies and processes used in this application.
         Use this as a guide to understand how we turn raw code into a searchable, analyzable knowledge base.
 
         ---
@@ -1281,13 +1281,13 @@ class Calculator:
             - AI-powered documentation and code summarization.
 
             ---
-            **Did you know?**  
+            **Did you know?**
             The same core ideas behind RAG are used in search engines, chatbots, and even self-driving cars (for retrieving relevant knowledge)!
             """)
 
         with st.expander("1️⃣ Parsing & Chunking - Understanding Code Structure", expanded=False):
             st.markdown("""
-            **Objective:**  
+            **Objective:**
             Break down code into logical, meaningful units ("chunks") such as functions, classes, imports, and variables.
 
             **How it works:**
@@ -1300,7 +1300,7 @@ class Calculator:
             - Each chunk is annotated with rich metadata: name, type, start/end lines, complexity, comments, etc.
 
             ---
-            **Analogy:**  
+            **Analogy:**
             Imagine reading a recipe book and making a list of all the ingredients, steps, and tips for each recipe. That's what parsing and chunking does for code!
 
             **Advanced Details:**
@@ -1336,7 +1336,7 @@ class Calculator:
                 - AST parsing is robust to formatting, whitespace, and comments.
                 - Enables static analysis, code transformation, and deep inspection.
 
-                **Technical Note:**  
+                **Technical Note:**
                 ASTs are the foundation for many tools: linters, formatters, refactoring engines, and even compilers.
                 """)
 
@@ -1358,7 +1358,7 @@ class Calculator:
 
         with st.expander("2️⃣ Embedding - Turning Code into Semantic Vectors", expanded=False):
             st.markdown("""
-            **Objective:**  
+            **Objective:**
             Convert code chunks into high-dimensional vectors ("embeddings") that capture their semantic meaning.
 
             **How it works:**
@@ -1368,7 +1368,7 @@ class Calculator:
             - Embeddings are cached and generated in batches for efficiency.
 
             ---
-            **Analogy:**  
+            **Analogy:**
             Imagine translating every paragraph in a book into a unique barcode that captures its meaning. Embeddings are like those barcodes for code!
 
             **Advanced Details:**
@@ -1397,7 +1397,7 @@ class Calculator:
                 - **Embeddings** are dense vector representations capturing meaning and context.
                 - Pre-trained models can generalize to new code and queries.
 
-                **Technical Note:**  
+                **Technical Note:**
                 Transformers use self-attention to model relationships between all tokens, making them ideal for code, which often has long-range dependencies.
                 """)
 
@@ -1417,7 +1417,7 @@ class Calculator:
 
         with st.expander("3️⃣ Indexing & Storage - Creating a Searchable Code Library", expanded=False):
             st.markdown("""
-            **Objective:**  
+            **Objective:**
             Store embeddings in a database that supports fast similarity search.
 
             **How it works:**
@@ -1430,7 +1430,7 @@ class Calculator:
             - All code chunks and their embeddings are stored for retrieval.
 
             ---
-            **Analogy:**  
+            **Analogy:**
             Think of FAISS as a super-powered librarian who can instantly find the most similar "barcodes" (embeddings) in a giant library!
 
             **Advanced Details:**
@@ -1460,7 +1460,7 @@ class Calculator:
                 - Supports CPU and GPU acceleration.
                 - Can handle millions of vectors with sub-second latency.
 
-                **Technical Note:**  
+                **Technical Note:**
                 FAISS supports advanced indexing structures (IVF, PQ, HNSW) for balancing speed, memory, and accuracy.
                 """)
 
@@ -1473,7 +1473,7 @@ class Calculator:
 
         with st.expander("4️⃣ Retrieval & Search - Finding Relevant Code", expanded=False):
             st.markdown("""
-            **Objective:**  
+            **Objective:**
             Retrieve the most relevant code chunks for a user's query (in natural language or code).
 
             **How it works:**
@@ -1484,7 +1484,7 @@ class Calculator:
             5. Results can be filtered by type, complexity, or quality.
 
             ---
-            **Analogy:**  
+            **Analogy:**
             It's like asking a librarian a question and instantly getting the most relevant book paragraphs, even if you don't know the exact words!
 
             **Advanced Details:**
@@ -1516,7 +1516,7 @@ class Calculator:
                     - Name, type, similarity score
                     - Complexity, maintainability, parameters, decorators
 
-                **Technical Note:**  
+                **Technical Note:**
                 Ranking can be further improved by combining semantic similarity with static code metrics or usage frequency.
                 """)
 
@@ -1528,7 +1528,7 @@ class Calculator:
 
         with st.expander("5️⃣ Analytics & Insights - Understanding the Codebase", expanded=False):
             st.markdown("""
-            **Objective:**  
+            **Objective:**
             Provide high-level analytics, clustering, and actionable insights about the codebase.
 
             **How it works:**
@@ -1539,7 +1539,7 @@ class Calculator:
             - **Recommendations:** Suggests improvements based on analysis (e.g., refactor complex code, add comments).
 
             ---
-            **Analogy:**  
+            **Analogy:**
             Imagine a map of your codebase, where similar code is grouped together, and hotspots are highlighted for improvement!
 
             **Advanced Details:**
@@ -1596,57 +1596,74 @@ class Calculator:
             **Ever wondered how ChatGPT, Copilot, or Bard are built? Here's a beginner-friendly roadmap!**
 
             ---
-            **Step 1: Gather Data**
-            - Collect a huge amount of text (books, code, websites, conversations).
-            - For code LLMs, add lots of open-source code and documentation.
+            **Step 1: Gather Data - The Raw Material**
+            - **What:** Collect a massive amount of text and code from the internet, books, open-source repositories, etc. Think petabytes (millions of gigabytes)!
+            - **Why:** LLMs learn by reading patterns, grammar, facts, and coding styles from this data. The more diverse and high-quality the data, the better the model.
+            - **Analogy:** This is like giving a student every book in the world to read.
 
-            **Step 2: Tokenization**
-            - Break all text/code into "tokens" (words, symbols, or even characters).
-            - Example: `"def add(a, b):"` → `["def", "add", "(", "a", ",", "b", ")", ":"]`
+            **Step 2: Tokenization - Breaking Down Language**
+            - **What:** Convert the raw text/code into smaller units called "tokens". A token can be a word, part of a word, a punctuation mark, or a special symbol.
+            - **Why:** Computers work with numbers, not text. Tokenization turns text into a sequence of numbers that the model can process. It also helps handle rare words or code patterns efficiently.
+            - **Example:** The sentence `"Hello, world!"` might become `[1549, 11, 2150, 0]` where each number represents a token. The code `"def add(a, b):"` might become `[54, 102, 3, 8, 11, 8, 4, 2]` (simplified).
+            - **Analogy:** Like breaking sentences into individual words or syllables before you learn to read.
 
-            **Step 3: Model Architecture**
-            - Use a **transformer** (like a giant neural network with attention layers).
-            - The model learns to predict the next token, given the previous ones.
+            **Step 3: Model Architecture - The Brain**
+            - **What:** Design the structure of the neural network. The most common architecture for LLMs is the **Transformer**.
+            - **Why:** Transformers are great at understanding context and relationships between tokens, even if they are far apart in the sequence (like a variable defined at the top of a function and used at the bottom).
+            - **Key Idea:** **Attention** mechanism - allows the model to focus on the most relevant parts of the input sequence when processing a token.
+            - **Analogy:** Imagine having a super-powered memory that lets you instantly recall any relevant piece of information from everything you've ever read when trying to understand a new sentence.
 
-            **Step 4: Training**
-            - Feed millions/billions of token sequences into the model.
-            - The model adjusts its weights to minimize prediction errors.
-            - This requires lots of GPUs and weeks/months of training!
+            **Step 4: Training - The Learning Process**
+            - **What:** Feed the tokenized data into the Transformer model and train it to predict the *next* token in a sequence, given the previous ones. This is called **autoregressive training**.
+            - **Why:** By predicting the next token billions of times, the model learns grammar, facts, reasoning abilities, and coding patterns. It learns which tokens are likely to follow others in different contexts.
+            - **Process:** The model makes a prediction, compares it to the actual next token, calculates an "error", and adjusts its internal parameters (weights and biases) to reduce that error. This is done using algorithms like **gradient descent**.
+            - **Scale:** This step requires enormous computing power (thousands of GPUs) and takes weeks or months. The model has billions or even trillions of parameters (think of them as tiny knobs the model adjusts).
+            - **Analogy:** Like practicing predicting the next word in a sentence over and over again, across the entire internet, until you become incredibly good at it.
 
-            **Step 5: Fine-Tuning (Optional)**
-            - Train further on specialized data (e.g., only code, or only medical text).
-            - This makes the model better at specific tasks.
+            **Step 5: Fine-Tuning (Optional but Common)**
+            - **What:** After the initial massive training (pre-training), the model can be trained further on a smaller, more specific dataset or for a specific task (like answering questions, writing code, or following instructions).
+            - **Why:** This specializes the general-purpose pre-trained model for particular applications. For a code LLM, you'd fine-tune heavily on code-related tasks. For a chatbot, you'd fine-tune on conversational data.
+            - **Techniques:** Includes Supervised Fine-Tuning (SFT) on input/output pairs and Reinforcement Learning from Human Feedback (RLHF) to align the model's output with human preferences.
+            - **Analogy:** After graduating from the "internet university", you go to "code academy" or "chatbot finishing school" to become an expert in a specific area.
 
-            **Step 6: Inference & Serving**
-            - Deploy the trained model so users can send prompts and get responses.
-            - Use optimizations (quantization, batching) for speed and cost.
+            **Step 6: Inference & Serving - Putting the Model to Work**
+            - **What:** Deploy the trained and potentially fine-tuned model so users can interact with it. When a user provides a "prompt" (input text/code), the model generates a response one token at a time, based on what it learned during training.
+            - **Why:** This is the step where the model actually *does* something useful!
+            - **Challenges:** Running large models efficiently requires specialized hardware and software for fast response times and managing many users.
+            - **Analogy:** Opening the library to the public and having the super-powered librarian answer questions based on everything they've read.
 
             ---
-            **Analogy:**  
-            Training an LLM is like teaching a super-powered autocomplete by reading the entire internet and all of GitHub!
+            **Analogy Summary:**
+            - **Data:** The entire library of human knowledge (text & code).
+            - **Tokenization:** Breaking books into words/syllables.
+            - **Model Architecture (Transformer):** The librarian's brain with incredible memory (attention).
+            - **Training:** The librarian reading *everything* and practicing predicting the next word.
+            - **Fine-Tuning:** The librarian specializing in a specific topic (like coding).
+            - **Inference:** The librarian answering your questions instantly.
 
             ---
             **Did you know?**
             - Modern LLMs have billions of parameters (think: adjustable dials).
             - Open-source LLMs like Llama, Mistral, and StarCoder are available for anyone to experiment with.
             - You can build a *tiny* LLM on your laptop using libraries like `transformers` and a small dataset!
+            - The cost of training a large LLM can be millions of dollars!
 
             ---
-            **Want to try?**  
-            - Check out [Hugging Face Transformers](https://huggingface.co/docs/transformers/index) for tutorials.
+            **Want to try?**
+            - Check out [Hugging Face Transformers](https://huggingface.co/docs/transformers/index) for tutorials on using pre-trained models.
             - Try training a mini language model on your own code snippets!
 
             ---
             **Summary Table: LLM Building Blocks**
 
-            | Step           | What Happens?                              | Tools/Libraries         |
-            |----------------|--------------------------------------------|-------------------------|
-            | Data           | Collect text/code                          | GitHub, Common Crawl    |
-            | Tokenization   | Split into tokens                          | `tokenizers`, `sentencepiece` |
-            | Model          | Build transformer architecture             | `transformers`, `pytorch`, `tensorflow` |
-            | Training       | Learn to predict next token                | `accelerate`, `deepspeed` |
-            | Fine-tuning    | Specialize for tasks                       | `peft`, `trl`           |
-            | Inference      | Serve model for user queries               | `fastapi`, `vllm`, `onnx` |
+            | Step           | What Happens?                              | Analogy                                  | Tools/Libraries         |
+            |----------------|--------------------------------------------|------------------------------------------|-------------------------|
+            | Data           | Collect text/code                          | The Library                              | GitHub, Common Crawl    |
+            | Tokenization   | Split into tokens                          | Breaking text into words/syllables       | `tokenizers`, `sentencepiece` |
+            | Model          | Build transformer architecture             | The Librarian's Brain (with Attention)   | `transformers`, `pytorch`, `tensorflow` |
+            | Training       | Learn to predict next token                | Reading & Practicing Predictions         | `accelerate`, `deepspeed` |
+            | Fine-tuning    | Specialize for tasks                       | Specializing in a Topic                  | `peft`, `trl`           |
+            | Inference      | Serve model for user queries               | Answering Questions for the Public       | `fastapi`, `vllm`, `onnx` |
 
             ---
             **You now know the high-level steps to build your own LLM!**
