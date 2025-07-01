@@ -1260,12 +1260,13 @@ class Calculator:
 
             This system is inspired by tools like GitHub Copilot and is designed to help developers, reviewers, and engineering leaders **understand, search, and improve code at scale**.
 
-            **Key Stages:**
-            1. Parsing & Chunking
-            2. Embedding
-            3. Indexing & Storage
-            4. Retrieval & Search
-            5. Analytics & Insights
+            ---
+            **Key Stages (Think of it like a Library!):**
+            1. **Parsing & Chunking**: Like breaking a book into chapters and paragraphs.
+            2. **Embedding**: Turning each paragraph into a unique "fingerprint" that captures its meaning.
+            3. **Indexing & Storage**: Organizing all fingerprints in a super-fast filing cabinet.
+            4. **Retrieval & Search**: Asking questions and instantly finding the most relevant paragraphs.
+            5. **Analytics & Insights**: Summarizing, clustering, and visualizing the whole library.
 
             ---
             **Why RAG for Code?**
@@ -1278,6 +1279,10 @@ class Calculator:
             - Onboarding new developers with codebase exploration.
             - Refactoring and technical debt identification.
             - AI-powered documentation and code summarization.
+
+            ---
+            **Did you know?**  
+            The same core ideas behind RAG are used in search engines, chatbots, and even self-driving cars (for retrieving relevant knowledge)!
             """)
 
         with st.expander("1️⃣ Parsing & Chunking - Understanding Code Structure", expanded=False):
@@ -1293,6 +1298,10 @@ class Calculator:
                 - Import statements
                 - Module-level variables and constants
             - Each chunk is annotated with rich metadata: name, type, start/end lines, complexity, comments, etc.
+
+            ---
+            **Analogy:**  
+            Imagine reading a recipe book and making a list of all the ingredients, steps, and tips for each recipe. That's what parsing and chunking does for code!
 
             **Advanced Details:**
             - **Handles nested structures:** Methods inside classes, inner functions, and async functions.
@@ -1318,6 +1327,7 @@ class Calculator:
                     ...
             ```
             """)
+            st.info("**Tip:** ASTs are like the X-ray vision for code—they reveal the structure beneath the surface!")
 
             with st.expander("🔬 Advanced: What is an AST and why use it?"):
                 st.markdown("""
@@ -1357,6 +1367,10 @@ class Calculator:
             - The model encodes this text into a vector (typically 384 dimensions).
             - Embeddings are cached and generated in batches for efficiency.
 
+            ---
+            **Analogy:**  
+            Imagine translating every paragraph in a book into a unique barcode that captures its meaning. Embeddings are like those barcodes for code!
+
             **Advanced Details:**
             - **Metadata fusion:** Embedding input includes not just code, but also type, name, parameters, and docstring for richer context.
             - **Batch processing:** Improves throughput and leverages model parallelism.
@@ -1375,6 +1389,7 @@ class Calculator:
             embedding = model.encode("Type: function Name: add Content: def add(a, b): ...")
             ```
             """)
+            st.info("**Did you know?** Embeddings are the secret sauce behind AI search, recommendations, and even image recognition!")
 
             with st.expander("🧠 What is a Transformer Embedding?"):
                 st.markdown("""
@@ -1414,6 +1429,10 @@ class Calculator:
                 - (Optionally) HNSW for approximate search
             - All code chunks and their embeddings are stored for retrieval.
 
+            ---
+            **Analogy:**  
+            Think of FAISS as a super-powered librarian who can instantly find the most similar "barcodes" (embeddings) in a giant library!
+
             **Advanced Details:**
             - **Hybrid indexing:** Switches between exact and approximate search based on dataset size.
             - **Search statistics:** Tracks query frequency, average search time, and popular queries.
@@ -1432,6 +1451,7 @@ class Calculator:
             index.add(embeddings.astype('float32'))
             ```
             """)
+            st.info("**Tip:** Vector search is used by Google Photos, Spotify, and many AI assistants!")
 
             with st.expander("🗄️ What is FAISS and why use it?"):
                 st.markdown("""
@@ -1463,6 +1483,10 @@ class Calculator:
             4. Top-k most similar code chunks are returned, ranked by similarity.
             5. Results can be filtered by type, complexity, or quality.
 
+            ---
+            **Analogy:**  
+            It's like asking a librarian a question and instantly getting the most relevant book paragraphs, even if you don't know the exact words!
+
             **Advanced Details:**
             - **Multi-modal queries:** Supports both code and natural language as input.
             - **Filtering and ranking:** Results can be filtered by chunk type, complexity, maintainability, or custom tags.
@@ -1480,6 +1504,7 @@ class Calculator:
             distances, indices = index.search(query_embedding, k)
             ```
             """)
+            st.info("**Did you know?** This is how AI assistants can answer questions about your codebase!")
 
             with st.expander("🔍 Advanced: Filtering and Ranking"):
                 st.markdown("""
@@ -1513,6 +1538,10 @@ class Calculator:
             - **Dependency Analysis:** Extracts call graphs, import graphs, and inheritance relationships.
             - **Recommendations:** Suggests improvements based on analysis (e.g., refactor complex code, add comments).
 
+            ---
+            **Analogy:**  
+            Imagine a map of your codebase, where similar code is grouped together, and hotspots are highlighted for improvement!
+
             **Advanced Details:**
             - **Semantic clustering:** Reveals hidden structure and architectural patterns in code.
             - **Hotspot detection:** Identifies complex or low-quality areas for targeted refactoring.
@@ -1534,6 +1563,7 @@ class Calculator:
             reduced = pca.fit_transform(embeddings)
             ```
             """)
+            st.info("**Tip:** Visualizing your codebase helps spot hidden patterns and technical debt!")
 
             with st.expander("📈 Visualizations Provided"):
                 st.markdown("""
@@ -1560,29 +1590,66 @@ class Calculator:
                 - **Automated alerts:** Notify teams when code quality drops below thresholds.
                 """)
 
-        with st.expander("🧩 Putting It All Together", expanded=False):
+        # --- NEW: LLM Demystified for Beginners ---
+        with st.expander("🤖 BONUS: How Would You Build an LLM (Large Language Model) From Scratch?", expanded=False):
             st.markdown("""
-            The RAG Code Intelligence System is more than just a search tool—it's a comprehensive platform for code understanding, quality assurance, and developer productivity.
-
-            **By combining:**
-            - Structural analysis (AST parsing)
-            - Semantic embeddings (transformers)
-            - Fast vector search (FAISS)
-            - Advanced analytics (clustering, metrics, recommendations)
-
-            **It empowers users to:**
-            - Instantly find relevant code using natural language or code-based queries.
-            - Understand the structure, complexity, and quality of large codebases.
-            - Discover architectural patterns, dependencies, and potential areas for improvement.
-            - Make data-driven decisions about refactoring, documentation, and code organization.
+            **Ever wondered how ChatGPT, Copilot, or Bard are built? Here's a beginner-friendly roadmap!**
 
             ---
-            **Design Philosophy:**
-            - **Extensible:** Easily add support for new languages, metrics, or models.
-            - **Scalable:** Handles everything from small scripts to monolithic codebases.
-            - **Actionable:** Turns raw code into insights and recommendations.
+            **Step 1: Gather Data**
+            - Collect a huge amount of text (books, code, websites, conversations).
+            - For code LLMs, add lots of open-source code and documentation.
 
-            **This approach represents the future of intelligent code analysis and search.**
+            **Step 2: Tokenization**
+            - Break all text/code into "tokens" (words, symbols, or even characters).
+            - Example: `"def add(a, b):"` → `["def", "add", "(", "a", ",", "b", ")", ":"]`
+
+            **Step 3: Model Architecture**
+            - Use a **transformer** (like a giant neural network with attention layers).
+            - The model learns to predict the next token, given the previous ones.
+
+            **Step 4: Training**
+            - Feed millions/billions of token sequences into the model.
+            - The model adjusts its weights to minimize prediction errors.
+            - This requires lots of GPUs and weeks/months of training!
+
+            **Step 5: Fine-Tuning (Optional)**
+            - Train further on specialized data (e.g., only code, or only medical text).
+            - This makes the model better at specific tasks.
+
+            **Step 6: Inference & Serving**
+            - Deploy the trained model so users can send prompts and get responses.
+            - Use optimizations (quantization, batching) for speed and cost.
+
+            ---
+            **Analogy:**  
+            Training an LLM is like teaching a super-powered autocomplete by reading the entire internet and all of GitHub!
+
+            ---
+            **Did you know?**
+            - Modern LLMs have billions of parameters (think: adjustable dials).
+            - Open-source LLMs like Llama, Mistral, and StarCoder are available for anyone to experiment with.
+            - You can build a *tiny* LLM on your laptop using libraries like `transformers` and a small dataset!
+
+            ---
+            **Want to try?**  
+            - Check out [Hugging Face Transformers](https://huggingface.co/docs/transformers/index) for tutorials.
+            - Try training a mini language model on your own code snippets!
+
+            ---
+            **Summary Table: LLM Building Blocks**
+
+            | Step           | What Happens?                              | Tools/Libraries         |
+            |----------------|--------------------------------------------|-------------------------|
+            | Data           | Collect text/code                          | GitHub, Common Crawl    |
+            | Tokenization   | Split into tokens                          | `tokenizers`, `sentencepiece` |
+            | Model          | Build transformer architecture             | `transformers`, `pytorch`, `tensorflow` |
+            | Training       | Learn to predict next token                | `accelerate`, `deepspeed` |
+            | Fine-tuning    | Specialize for tasks                       | `peft`, `trl`           |
+            | Inference      | Serve model for user queries               | `fastapi`, `vllm`, `onnx` |
+
+            ---
+            **You now know the high-level steps to build your own LLM!**
             """)
 
 if __name__ == "__main__":
