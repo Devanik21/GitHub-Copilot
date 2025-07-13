@@ -1057,115 +1057,520 @@ class Calculator:
 
     with tab2:
         st.header("📊 Code Analytics & Insights")
+        if uploaded_file or example_code:
+            rag = ComprehensiveRAGSystem()
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = EXAMPLE_CODE
+                file_path = "example.py"
+            analysis = rag.process_code(code, file_path)
+            
+            if "error" in analysis:
+                st.error(analysis["error"])
+                return
+
+            st.subheader("Code Quality Metrics")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Maintainability Index", f"{analysis['quality_metrics']['maintainability_index']:.2f}")
+                st.metric("Comment Ratio", f"{analysis['quality_metrics']['comment_ratio']:.2%}")
+            with col2:
+                st.metric("Complexity Score", f"{analysis['quality_metrics']['complexity_score']:.2f}")
+                st.metric("Code Coverage", f"{analysis['quality_metrics']['code_coverage']:.2%}")
+            with col3:
+                st.metric("Bug Risk", f"{analysis['quality_metrics']['bug_risk']:.2%}")
+                st.metric("Technical Debt", f"{analysis['quality_metrics']['technical_debt']:.2%}")
+
+            st.subheader("Code Structure Analysis")
+            st.json(analysis["structure_analysis"], expanded=False)
+
+            st.subheader("Dependency Analysis")
+            st.graphviz_chart(analysis["dependency_analysis"]["graphviz"])
+
+            st.subheader("Performance Metrics")
+            perf_df = pd.DataFrame(analysis["performance_metrics"])
+            st.bar_chart(perf_df.set_index("metric"))
+
+            st.subheader("Code Evolution Trends")
+            if analysis["trend_analysis"]:
+                trend_df = pd.DataFrame(analysis["trend_analysis"])
+                st.line_chart(trend_df)
+            else:
+                st.info("No historical data available for trend analysis")
+        else:
+            st.info("Upload a Python file or use example code to see analytics.")
 
     with tab5:
         st.header("📈 Code Trend Analysis")
-        st.markdown("""
-        *Placeholder for visualizing code quality and complexity trends over time.*
+        if uploaded_file or example_code:
+            rag = ComprehensiveRAGSystem()
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = EXAMPLE_CODE
+                file_path = "example.py"
+            analysis = rag.process_code(code, file_path)
 
-        This section could include graphs showing changes in metrics like:
-        - Average Complexity Score
-        - Maintainability Index
-        - Comment Ratio
-        - Number of High-Complexity Chunks
+            if "error" in analysis:
+                st.error(analysis["error"])
+                return
 
-        Requires storing historical analysis data.
-        """)
+            st.subheader("Metric Trends Over Time")
+            if analysis["trend_analysis"]:
+                trend_df = pd.DataFrame(analysis["trend_analysis"])
+                
+                # Create multiple charts
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.plotly_chart(px.line(trend_df, x="date", y="complexity_score", 
+                                          title="Complexity Score Trend"))
+                    st.plotly_chart(px.line(trend_df, x="date", y="maintainability_index", 
+                                          title="Maintainability Index Trend"))
+                with col2:
+                    st.plotly_chart(px.line(trend_df, x="date", y="code_coverage", 
+                                          title="Code Coverage Trend"))
+                    st.plotly_chart(px.line(trend_df, x="date", y="bug_risk", 
+                                          title="Bug Risk Trend"))
+            else:
+                st.info("No historical data available for trend analysis")
+
+            st.subheader("Code Evolution Heatmap")
+            if analysis["evolution_heatmap"]:
+                heatmap_df = pd.DataFrame(analysis["evolution_heatmap"])
+                fig = px.density_heatmap(
+                    heatmap_df, x="date", y="metric", z="value",
+                    title="Code Evolution Heatmap",
+                    color_continuous_scale="Viridis"
+                )
+                st.plotly_chart(fig)
+        else:
+            st.info("Upload a Python file or use example code to see trend analysis.")
 
     with tab6:
         st.header("🌐 Interactive Dependency Graph")
-        st.markdown("""
-        *Placeholder for an interactive visualization of code dependencies.*
+        if uploaded_file or example_code:
+            rag = ComprehensiveRAGSystem()
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = EXAMPLE_CODE
+                file_path = "example.py"
+            analysis = rag.process_code(code, file_path)
 
-        This section could display:
-        - Call graphs (which functions call which others)
-        - Import graphs (which modules import which others)
-        - Class inheritance graphs
+            if "error" in analysis:
+                st.error(analysis["error"])
+                return
 
-        Could use libraries like `pyvis` or `networkx` with interactive rendering.
-        """)
+            st.subheader("Call Graph Visualization")
+            if analysis["dependency_analysis"]["call_graph"]:
+                call_graph = analysis["dependency_analysis"]["call_graph"]
+                G = nx.DiGraph()
+                
+                # Add nodes and edges
+                for caller, callees in call_graph.items():
+                    G.add_node(caller, type="function")
+                    for callee in callees:
+                        G.add_node(callee, type="function")
+                        G.add_edge(caller, callee)
+                
+                # Create interactive visualization
+                pos = nx.spring_layout(G)
+                edge_x = []
+                edge_y = []
+                for edge in G.edges():
+                    x0, y0 = pos[edge[0]]
+                    x1, y1 = pos[edge[1]]
+                    edge_x += [x0, x1, None]
+                    edge_y += [y0, y1, None]
+                
+                edge_trace = go.Scatter(
+                    x=edge_x, y=edge_y,
+                    line=dict(width=1, color='#888'),
+                    hoverinfo='none',
+                    mode='lines'
+                )
+                
+                node_x = []
+                node_y = []
+                node_text = []
+                node_size = []
+                for node in G.nodes():
+                    x, y = pos[node]
+                    node_x.append(x)
+                    node_y.append(y)
+                    node_text.append(node)
+                    # Node size based on number of connections
+                    node_size.append(len(list(G.neighbors(node))) * 10)
+                
+                node_trace = go.Scatter(
+                    x=node_x, y=node_y,
+                    mode='markers+text',
+                    text=node_text,
+                    textposition="top center",
+                    marker=dict(
+                        size=node_size,
+                        color='rgba(102,126,234,0.8)',
+                        sizemode='area'
+                    ),
+                    hoverinfo='text'
+                )
+                
+                fig = go.Figure(data=[edge_trace, node_trace],
+                              layout=go.Layout(
+                                  showlegend=False,
+                                  hovermode='closest',
+                                  margin=dict(b=20,l=5,r=5,t=40),
+                                  xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                  yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                  title="Function Call Graph"
+                              ))
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No call relationships detected in the code.")
+
+            st.subheader("Import Dependency Tree")
+            if analysis["dependency_analysis"]["import_tree"]:
+                import_tree = analysis["dependency_analysis"]["import_tree"]
+                st.json(import_tree, expanded=False)
+        else:
+            st.info("Upload a Python file or use example code to see dependency graphs.")
 
     with tab7:
         st.header("🔮 Predictive Code Insights")
-        st.markdown("""
-        *Placeholder for AI-driven predictive features.*
+        if uploaded_file or example_code:
+            rag = ComprehensiveRAGSystem()
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = EXAMPLE_CODE
+                file_path = "example.py"
+            analysis = rag.process_code(code, file_path)
 
-        Potential insights could include:
-        - Predicting areas of technical debt
-        - Suggesting refactoring opportunities
-        - Identifying potential bugs or vulnerabilities based on code patterns
-        - Estimating development effort for specific code sections
+            if "error" in analysis:
+                st.error(analysis["error"])
+                return
 
-        This would require training more advanced ML models on historical codebase data.
-        """)
+            st.subheader("Predictive Metrics")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Future Bug Risk", f"{analysis['predictive_metrics']['future_bug_risk']:.2%}")
+                st.metric("Technical Debt Growth", f"{analysis['predictive_metrics']['technical_debt_growth']:.2%}")
+            with col2:
+                st.metric("Maintenance Effort", f"{analysis['predictive_metrics']['maintenance_effort']:.2f} hours")
+                st.metric("Refactoring Priority", analysis['predictive_metrics']['refactoring_priority'])
+
+            st.subheader("Risk Hotspots")
+            if analysis["risk_hotspots"]:
+                risk_df = pd.DataFrame(analysis["risk_hotspots"])
+                st.dataframe(risk_df.style.background_gradient(cmap='Reds'))
+
+            st.subheader("Development Effort Estimation")
+            if analysis["effort_estimation"]:
+                effort_df = pd.DataFrame(analysis["effort_estimation"])
+                st.bar_chart(effort_df.set_index("component"))
+
+            st.subheader("Refactoring Opportunities")
+            if analysis["refactoring_opportunities"]:
+                for opportunity in analysis["refactoring_opportunities"]:
+                    with st.expander(opportunity["name"]):
+                        st.markdown(f"**Type:** {opportunity['type']}")
+                        st.markdown(f"**Priority:** {opportunity['priority']}")
+                        st.markdown(f"**Description:** {opportunity['description']}")
+                        st.markdown(f"**Estimated Savings:** {opportunity['estimated_savings']}")
+        else:
+            st.info("Upload a Python file or use example code to see predictive insights.")
 
     with tab8:
         st.header("🔄 Refactoring Suggestions")
-        st.markdown("""
-        *Placeholder for automated refactoring suggestions.*
+        if uploaded_file or example_code:
+            rag = ComprehensiveRAGSystem()
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = EXAMPLE_CODE
+                file_path = "example.py"
+            analysis = rag.process_code(code, file_path)
 
-        This section could provide recommendations on:
-        - Simplifying complex functions
-        - Breaking down large classes
-        - Removing duplicate code
-        - Improving variable names
+            if "error" in analysis:
+                st.error(analysis["error"])
+                return
 
-        This would likely involve more advanced static analysis and potentially AI models trained on code refactoring patterns.
-        """)
+            st.subheader("Refactoring Opportunities")
+            if analysis["refactoring_suggestions"]:
+                for suggestion in analysis["refactoring_suggestions"]:
+                    with st.expander(suggestion["title"]):
+                        st.markdown(f"**Type:** {suggestion['type']}")
+                        st.markdown(f"**Priority:** {suggestion['priority']}")
+                        st.markdown(f"**Current Code:**")
+                        st.code(suggestion["current_code"], language="python")
+                        st.markdown(f"**Suggested Changes:**")
+                        st.code(suggestion["suggested_code"], language="python")
+                        st.markdown(f"**Benefits:**")
+                        st.markdown(suggestion["benefits"])
+                        st.markdown(f"**Impact:**")
+                        st.markdown(suggestion["impact"])
+
+            st.subheader("Code Duplication Analysis")
+            if analysis["code_duplicates"]:
+                dup_df = pd.DataFrame(analysis["code_duplicates"])
+                st.dataframe(dup_df.style.background_gradient(cmap='Blues'))
+
+            st.subheader("Complexity Hotspots")
+            if analysis["complexity_hotspots"]:
+                hotspot_df = pd.DataFrame(analysis["complexity_hotspots"])
+                st.dataframe(hotspot_df.style.background_gradient(cmap='Reds'))
+
+            st.subheader("Code Style Improvements")
+            if analysis["style_improvements"]:
+                for improvement in analysis["style_improvements"]:
+                    with st.expander(improvement["title"]):
+                        st.markdown(f"**Current Implementation:**")
+                        st.code(improvement["current_code"], language="python")
+                        st.markdown(f"**Suggested Style:**")
+                        st.code(improvement["suggested_code"], language="python")
+                        st.markdown(f"**Rationale:**")
+                        st.markdown(improvement["rationale"])
+        else:
+            st.info("Upload a Python file or use example code to see refactoring suggestions.")
 
     with tab9:
         st.header("🛡️ Security Analysis")
-        st.markdown("""
-        *Placeholder for identifying potential security vulnerabilities in the code.*
+        if uploaded_file or example_code:
+            rag = ComprehensiveRAGSystem()
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = EXAMPLE_CODE
+                file_path = "example.py"
+            analysis = rag.process_code(code, file_path)
 
-        This section could flag issues such as:
-        - SQL injection risks
-        - Cross-site scripting (XSS) possibilities
-        - Use of insecure functions or libraries
-        - Hardcoded credentials
+            if "error" in analysis:
+                st.error(analysis["error"])
+                return
 
-        Requires integration with static application security testing (SAST) tools or custom security analysis logic.
-        """)
+            st.subheader("Security Risk Assessment")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Overall Security Score", f"{analysis['security_metrics']['score']:.2f}")
+                st.metric("Critical Vulnerabilities", analysis['security_metrics']['critical_count'])
+            with col2:
+                st.metric("High Risk Areas", analysis['security_metrics']['high_risk_count'])
+                st.metric("Security Debt", f"{analysis['security_metrics']['security_debt']:.2%}")
+
+            st.subheader("Security Vulnerabilities")
+            if analysis["security_vulnerabilities"]:
+                vuln_df = pd.DataFrame(analysis["security_vulnerabilities"])
+                st.dataframe(vuln_df.style.applymap(
+                    lambda x: 'background-color: #ffcccc' if x == 'Critical' else ''
+                ))
+
+            st.subheader("Security Code Review")
+            if analysis["security_review"]:
+                for review in analysis["security_review"]:
+                    with st.expander(review["title"]):
+                        st.markdown(f"**Severity:** {review['severity']}")
+                        st.markdown(f"**Type:** {review['type']}")
+                        st.markdown(f"**Location:** {review['location']}")
+                        st.markdown(f"**Description:**")
+                        st.code(review["code_snippet"], language="python")
+                        st.markdown(f"**Recommendation:**")
+                        st.code(review["recommendation"], language="python")
+
+            st.subheader("Dependency Security")
+            if analysis["dependency_security"]:
+                dep_df = pd.DataFrame(analysis["dependency_security"])
+                st.dataframe(dep_df.style.applymap(
+                    lambda x: 'background-color: #ffcccc' if x == 'Vulnerable' else ''
+                ))
+        else:
+            st.info("Upload a Python file or use example code to see security analysis.")
 
     with tab10:
         st.header("📚 Documentation Generator")
-        st.markdown("""
-        *Placeholder for generating documentation based on code and docstrings.*
+        if uploaded_file or example_code:
+            rag = ComprehensiveRAGSystem()
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = EXAMPLE_CODE
+                file_path = "example.py"
+            analysis = rag.process_code(code, file_path)
 
-        This section could:
-        - Extract information from docstrings, function/class signatures, and comments.
-        - Generate documentation in various formats (e.g., Markdown, Sphinx).
-        - Identify missing or incomplete documentation.
+            if "error" in analysis:
+                st.error(analysis["error"])
+                return
 
-        Could leverage AST analysis and potentially natural language generation techniques.
-        """)
+            st.subheader("Documentation Status")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Overall Documentation", f"{analysis['documentation_metrics']['overall_coverage']:.2%}")
+                st.metric("Missing Docstrings", analysis['documentation_metrics']['missing_count'])
+            with col2:
+                st.metric("Function Coverage", f"{analysis['documentation_metrics']['function_coverage']:.2%}")
+                st.metric("Class Coverage", f"{analysis['documentation_metrics']['class_coverage']:.2%}")
+
+            st.subheader("Generated Documentation")
+            if analysis["generated_docs"]:
+                for doc in analysis["generated_docs"]:
+                    with st.expander(doc["title"]):
+                        st.markdown(f"**Description:**")
+                        st.markdown(doc["description"])
+                        st.markdown(f"**Parameters:**")
+                        st.json(doc["parameters"], expanded=False)
+                        st.markdown(f"**Returns:**")
+                        st.markdown(doc["returns"])
+                        st.markdown(f"**Examples:**")
+                        st.code(doc["examples"], language="python")
+
+            st.subheader("Missing Documentation")
+            if analysis["missing_docs"]:
+                missing_df = pd.DataFrame(analysis["missing_docs"])
+                st.dataframe(missing_df.style.background_gradient(cmap='Reds'))
+
+            st.subheader("Documentation Quality")
+            if analysis["doc_quality"]:
+                quality_df = pd.DataFrame(analysis["doc_quality"])
+                st.dataframe(quality_df.style.background_gradient(cmap='Greens'))
+
+            st.subheader("Export Documentation")
+            if analysis["export_docs"]:
+                for format in analysis["export_docs"]:
+                    st.download_button(
+                        label=f"Download {format} Documentation",
+                        data=analysis["export_docs"][format],
+                        file_name=f"documentation.{format.lower()}"
+                    )
+        else:
+            st.info("Upload a Python file or use example code to see documentation generation.")
 
     with tab11:
         st.header("🧪 Test Coverage Analysis")
-        st.markdown("""
-        *Placeholder for visualizing and analyzing code test coverage.*
+        if uploaded_file or example_code:
+            rag = ComprehensiveRAGSystem()
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = EXAMPLE_CODE
+                file_path = "example.py"
+            analysis = rag.process_code(code, file_path)
 
-        This section could display:
-        - Overall test coverage percentage
-        - Coverage by file, function, or class
-        - Lines of code not covered by tests
-        - Trends in test coverage over time
+            if "error" in analysis:
+                st.error(analysis["error"])
+                return
 
-        Requires integrating with test coverage tools (e.g., `coverage.py`).
-        """)
+            st.subheader("Test Coverage Metrics")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Overall Coverage", f"{analysis['test_metrics']['overall_coverage']:.2%}")
+                st.metric("Function Coverage", f"{analysis['test_metrics']['function_coverage']:.2%}")
+            with col2:
+                st.metric("Branch Coverage", f"{analysis['test_metrics']['branch_coverage']:.2%}")
+                st.metric("Statement Coverage", f"{analysis['test_metrics']['statement_coverage']:.2%}")
+
+            st.subheader("Coverage by Component")
+            if analysis["coverage_by_component"]:
+                coverage_df = pd.DataFrame(analysis["coverage_by_component"])
+                st.bar_chart(coverage_df.set_index("component"))
+
+            st.subheader("Uncovered Code")
+            if analysis["uncovered_code"]:
+                uncovered_df = pd.DataFrame(analysis["uncovered_code"])
+                st.dataframe(uncovered_df.style.background_gradient(cmap='Reds'))
+
+            st.subheader("Test Quality Analysis")
+            if analysis["test_quality"]:
+                quality_df = pd.DataFrame(analysis["test_quality"])
+                st.dataframe(quality_df.style.background_gradient(cmap='Greens'))
+
+            st.subheader("Coverage Trends")
+            if analysis["coverage_trends"]:
+                trend_df = pd.DataFrame(analysis["coverage_trends"])
+                st.line_chart(trend_df)
+        else:
+            st.info("Upload a Python file or use example code to see test coverage analysis.")
 
     with tab12:
         st.header("📊 Custom Reports")
-        st.markdown("""
-        *Placeholder for generating customizable reports based on code analysis data.*
+        if uploaded_file or example_code:
+            rag = ComprehensiveRAGSystem()
+            if uploaded_file:
+                code = uploaded_file.read().decode("utf-8")
+                file_path = uploaded_file.name
+            else:
+                code = EXAMPLE_CODE
+                file_path = "example.py"
+            analysis = rag.process_code(code, file_path)
 
-        This section could allow users to:
-        - Select specific metrics and visualizations
-        - Filter analysis results
-        - Export reports in different formats (e.g., PDF, CSV)
+            if "error" in analysis:
+                st.error(analysis["error"])
+                return
 
-        Requires a flexible reporting engine built on top of the analysis results.
-        """)
+            st.subheader("Report Configuration")
+            # Add filters and selections
+            selected_metrics = st.multiselect(
+                "Select Metrics to Include",
+                options=["complexity", "quality", "security", "documentation", "test_coverage"],
+                default=["complexity", "quality"]
+            )
+
+            selected_components = st.multiselect(
+                "Select Components to Analyze",
+                options=["functions", "classes", "modules", "dependencies"],
+                default=["functions", "classes"]
+            )
+
+            report_format = st.selectbox(
+                "Select Report Format",
+                options=["PDF", "CSV", "JSON", "HTML"]
+            )
+
+            if st.button("Generate Report"):
+                # Generate report based on selections
+                report = analysis["custom_report"](
+                    metrics=selected_metrics,
+                    components=selected_components
+                )
+                
+                # Display report preview
+                st.subheader("Report Preview")
+                if report_format == "JSON":
+                    st.json(report)
+                elif report_format == "CSV":
+                    st.dataframe(pd.DataFrame(report))
+                else:
+                    st.markdown(report)
+
+                # Download button
+                report_data = json.dumps(report, indent=2)
+                st.download_button(
+                    label=f"Download {report_format} Report",
+                    data=report_data,
+                    file_name=f"code_analysis_report.{report_format.lower()}"
+                )
+
+            st.subheader("Saved Reports")
+            if analysis["saved_reports"]:
+                for report in analysis["saved_reports"]:
+                    with st.expander(report["name"]):
+                        st.markdown(f"**Date:** {report['date']}")
+                        st.markdown(f"**Metrics:** {', '.join(report['metrics'])}")
+                        st.markdown(f"**Components:** {', '.join(report['components'])}")
+                        st.download_button(
+                            label="Download Report",
+                            data=report["data"],
+                            file_name=report["name"]
+                        )
+        else:
+            st.info("Upload a Python file or use example code to see custom reports.")
         # --- Show analytics if code is processed ---
         if uploaded_file or example_code:
             rag = ComprehensiveRAGSystem()
