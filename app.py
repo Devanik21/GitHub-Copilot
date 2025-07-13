@@ -963,72 +963,130 @@ class Calculator:
                 st.markdown("#### Download Analysis Report")
                 report_json = json.dumps(analysis, indent=2, default=str)
                 st.download_button(
-                    label="Download JSON Report",
+                    label="Download Report",
                     data=report_json,
                     file_name="code_analysis_report.json",
                     mime="application/json"
                 )
 
-                if analysis["semantic_clustering"]:
-                    st.markdown("#### Semantic Clustering (2D PCA)")
-                    clusters = pd.DataFrame(analysis["semantic_clustering"]["clusters"])
-                    fig = px.scatter(
-                        clusters, x="x", y="y", color="cluster", hover_data=["name", "type"],
-                        title="Semantic Clusters of Code Chunks"
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-
-                # --- Advanced Feature: Call Graph Visualization ---
-                if show_call_graph:
-                    st.markdown("#### Call Graph Visualization")
-                    call_graph = analysis["dependency_analysis"]["call_graph"]
-                    if call_graph:
-                        G = nx.DiGraph()
-                        for caller, callees in call_graph.items():
-                            for callee in callees:
-                                G.add_edge(caller, callee)
-                        pos = nx.spring_layout(G, k=0.5, iterations=20, seed=42)
-                        edge_x = []
-                        edge_y = []
-                        for edge in G.edges():
-                            x0, y0 = pos[edge[0]]
-                            x1, y1 = pos[edge[1]]
-                            edge_x += [x0, x1, None]
-                            edge_y += [y0, y1, None]
-                        edge_trace = go.Scatter(
-                            x=edge_x, y=edge_y,
-                            line=dict(width=1, color='#888'),
-                            hoverinfo='none',
-                            mode='lines'
+                # Show semantic clustering if available
+                if analysis.get("semantic_clustering"):
+                    st.markdown("#### Semantic Clustering")
+                    try:
+                        clusters = pd.DataFrame(analysis["semantic_clustering"]["clusters"])
+                        fig = px.scatter(
+                            clusters, x="x", y="y", color="cluster", 
+                            hover_data=["name", "type"],
+                            title="Code Chunk Clusters"
                         )
-                        node_x = []
-                        node_y = []
-                        node_text = []
-                        for node in G.nodes():
-                            x, y = pos[node]
-                            node_x.append(x)
-                            node_y.append(y)
-                            node_text.append(node)
-                        node_trace = go.Scatter(
-                            x=node_x, y=node_y,
-                            mode='markers+text',
-                            text=node_text,
-                            textposition="top center",
-                            marker=dict(size=20, color='rgba(102,126,234,0.8)'),
-                            hoverinfo='text'
-                        )
-                        fig = go.Figure(data=[edge_trace, node_trace],
-                                        layout=go.Layout(
-                                            showlegend=False,
-                                            hovermode='closest',
-                                            margin=dict(b=20,l=5,r=5,t=40),
-                                            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                                            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                                            title="Function/Method Call Graph"
-                                        ))
                         st.plotly_chart(fig, use_container_width=True)
-                    else:
-                        st.info("No call relationships detected.")
+                    except Exception as e:
+                        st.warning(f"Could not display semantic clustering: {str(e)}")
+
+        with tab7:
+            st.header("🔮 Predictive Insights")
+            if uploaded_file or example_code:
+                try:
+                    st.subheader("Code Health Predictions")
+                    pred_metrics = analysis.get("predictive_metrics", {})
+                    
+                    # Bug risk assessment with safe access
+                    bug_risk = pred_metrics.get("bug_risk", {}) or {}
+                    bug_risk_score = min(10, max(0, float(bug_risk.get("score", 0))))
+                    bug_risk_color = "red" if bug_risk_score > 7 else "orange" if bug_risk_score > 4 else "green"
+                    
+                    # Technical debt assessment with safe access
+                    tech_debt = pred_metrics.get("technical_debt", {}) or {}
+                    tech_debt_score = min(10, max(0, float(tech_debt.get("score", 0))))
+                    tech_debt_color = "red" if tech_debt_score > 7 else "orange" if tech_debt_score > 4 else "green"
+                    
+                    # Refactoring opportunities with safe access
+                    refactoring = pred_metrics.get("refactoring_opportunities", {}) or {}
+                    refactoring_count = max(0, int(refactoring.get("count", 0)))
+                    
+                    # Display metrics with error boundaries
+                    col1, col2, col3 = st.columns(3)
+                    
+                    # Bug Risk Score
+                    with col1:
+                        st.metric("Bug Risk Score", f"{bug_risk_score:.1f}/10",
+                                delta_color="inverse",
+                                help="Lower is better. Based on code complexity and historical patterns.")
+                        st.progress(min(1.0, max(0.0, 1 - (bug_risk_score / 10))))
+                    
+                    # Technical Debt
+                    with col2:
+                        st.metric("Technical Debt", f"{tech_debt_score:.1f}/10",
+                                delta_color="inverse",
+                                help="Lower is better. Estimated technical debt in the codebase.")
+                        st.progress(min(1.0, max(0.0, 1 - (tech_debt_score / 10))))
+                    
+                    # Refactoring Opportunities
+                    with col3:
+                        st.metric("Refactoring Opportunities", refactoring_count,
+                                help="Number of potential code improvements identified.")
+                    
+                    # Detailed insights with error handling
+                    st.subheader("Detailed Insights")
+                    
+                    # Bug risk factors
+                    with st.expander("🔍 Bug Risk Factors"):
+                        bug_factors = bug_risk.get("factors", [])
+                        if isinstance(bug_factors, (list, tuple)) and bug_factors:
+                            for factor in bug_factors:
+                                if factor and str(factor).strip():
+                                    st.markdown(f"- {str(factor).strip()}")
+                                else:
+                                    st.markdown("- No details available")
+                        else:
+                            st.info("No specific risk factors identified.")
+                    
+                    # Technical debt details
+                    with st.expander("💸 Technical Debt Breakdown"):
+                        debt_items = tech_debt.get("items", [])
+                        if isinstance(debt_items, (list, tuple)) and debt_items:
+                            for item in debt_items:
+                                if item and str(item).strip():
+                                    st.markdown(f"- {str(item).strip()}")
+                                else:
+                                    st.markdown("- No details available")
+                        else:
+                            st.info("No technical debt items identified.")
+                    
+                    # Refactoring suggestions
+                    with st.expander("🔧 Top Refactoring Suggestions"):
+                        suggestions = refactoring.get("suggestions", [])
+                        if isinstance(suggestions, (list, tuple)) and suggestions:
+                            for i, suggestion in enumerate(suggestions[:5], 1):
+                                if suggestion and str(suggestion).strip():
+                                    st.markdown(f"{i}. {str(suggestion).strip()}")
+                        else:
+                            st.info("No specific refactoring suggestions available.")
+                    
+                    # Prediction confidence with bounds checking
+                    try:
+                        confidence = min(100, max(0, float(pred_metrics.get("confidence", 0) * 100)))
+                        st.caption(f"Prediction confidence: {confidence:.1f}%")
+                    except (ValueError, TypeError) as e:
+                        st.warning("Could not calculate prediction confidence.")
+                    
+                except Exception as e:
+                    st.error(f"Error loading predictive insights: {str(e)}")
+                    st.warning("Some predictive metrics may not be displayed correctly.")
+            else:
+                st.info("Upload a Python file or use example code to see predictive insights.")
+            
+            # Create and display the call graph figure
+            if analysis.get("call_graph"):
+                fig = go.Figure()
+                fig.update_layout(
+                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                    title="Function/Method Call Graph"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No call relationships detected.")
 
             if search_query:
                 st.subheader(f"🔎 Semantic Search Results for: '{search_query}'")
@@ -1052,8 +1110,8 @@ class Calculator:
                         st.markdown(f"**Comment Ratio:** {chunk.comment_ratio:.2f}")
                         st.markdown(f"**Variables Defined:** {', '.join(chunk.variables_defined) if chunk.variables_defined else '_None_'}")
                         st.markdown(f"**Calls Made:** {', '.join(chunk.calls_made) if chunk.calls_made else '_None_'}")
-        else:
-            st.info("Upload a Python file or use example code to get started.")
+            else:
+                st.info("Upload a Python file or use example code to get started.")
 
     with tab2:
         st.header("📊 Code Analytics & Insights")
@@ -1177,99 +1235,31 @@ class Calculator:
         st.header("🌐 Interactive Dependency Graph")
         if uploaded_file or example_code:
             rag = ComprehensiveRAGSystem()
-            if uploaded_file:
-                code = uploaded_file.read().decode("utf-8")
-                file_path = uploaded_file.name
-            else:
-                code = EXAMPLE_CODE
-                file_path = "example.py"
-            analysis = rag.process_code(code, file_path)
-
-            if "error" in analysis:
-                st.error(analysis["error"])
-                return
-
-            st.subheader("Call Graph Visualization")
-            if analysis.get("dependency_analysis", {}).get("call_graph"):
-                call_graph = analysis["dependency_analysis"]["call_graph"]
-                G = nx.DiGraph()
+            try:
+                if uploaded_file:
+                    code = uploaded_file.read().decode("utf-8")
+                    file_path = uploaded_file.name
+                    # Process the code and get analysis
+                    analysis = rag.process_code(code, file_path)
+                    
+                    # Display call graph if available
+                    if analysis and analysis.get("call_graph"):
+                        st.subheader("Call Graph")
+                        st.json(analysis["call_graph"], expanded=False)
+                    else:
+                        st.info("No call relationships detected in the code.")
                 
-                try:
-                    # Add nodes and edges
-                    for caller, callees in call_graph.items():
-                        if caller:  # Ensure caller is not None or empty
-                            G.add_node(str(caller), type="function")
-                            for callee in callees:
-                                if callee:  # Ensure callee is not None or empty
-                                    G.add_node(str(callee), type="function")
-                                    G.add_edge(str(caller), str(callee))
-                    
-                    # Create interactive visualization
-                    pos = nx.spring_layout(G)
-                    edge_x = []
-                    edge_y = []
-                    for edge in G.edges():
-                        x0, y0 = pos[edge[0]]
-                        x1, y1 = pos[edge[1]]
-                        edge_x += [x0, x1, None]
-                        edge_y += [y0, y1, None]
-                    
-                    edge_trace = go.Scatter(
-                        x=edge_x, y=edge_y,
-                        line=dict(width=1, color='#888'),
-                        hoverinfo='none',
-                        mode='lines'
-                    )
-                    
-                    node_x = []
-                    node_y = []
-                    node_text = []
-                    node_size = []
-                    for node in G.nodes():
-                        x, y = pos[node]
-                        node_x.append(x)
-                        node_y.append(y)
-                        node_text.append(node)
-                        # Node size based on number of connections
-                        node_size.append(len(list(G.neighbors(node))) * 10)
-                    
-                    node_trace = go.Scatter(
-                        x=node_x, y=node_y,
-                        mode='markers+text',
-                        text=node_text,
-                        textposition="top center",
-                        marker=dict(
-                            size=node_size,
-                            color='rgba(102,126,234,0.8)',
-                            sizemode='area'
-                        ),
-                        hoverinfo='text'
-                    )
-                    
-                    fig = go.Figure(data=[edge_trace, node_trace],
-                                  layout=go.Layout(
-                                      showlegend=False,
-                                      hovermode='closest',
-                                      margin=dict(b=20,l=5,r=5,t=40),
-                                      xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                                      yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                                      title="Function Call Graph"
-                                  ))
-                    st.plotly_chart(fig, use_container_width=True)
-                except Exception as e:
-                    st.warning(f"Could not render call graph: {str(e)}")
-            else:
-                st.info("No call relationships detected in the code.")
-
-            st.subheader("Import Dependency Tree")
-            if analysis.get("dependency_analysis", {}).get("import_tree"):
-                import_tree = analysis["dependency_analysis"]["import_tree"]
-                try:
-                    st.json(import_tree, expanded=False)
-                except Exception as e:
-                    st.warning(f"Could not display import tree: {str(e)}")
-            else:
-                st.info("No import dependency data available")
+                st.subheader("Import Dependency Tree")
+                if analysis and analysis.get("dependency_analysis", {}).get("import_tree"):
+                    import_tree = analysis["dependency_analysis"]["import_tree"]
+                    try:
+                        st.json(import_tree, expanded=False)
+                    except Exception as e:
+                        st.warning(f"Could not display import tree: {str(e)}")
+                else:
+                    st.info("No import dependency data available")
+            except Exception as e:
+                st.error(f"An error occurred while processing the file: {str(e)}")
         else:
             st.info("Upload a Python file or use example code to see dependency graphs.")
 
