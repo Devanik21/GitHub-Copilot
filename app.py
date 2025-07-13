@@ -883,11 +883,19 @@ class Calculator:
     show_call_graph = st.sidebar.checkbox("Show Call Graph", value=False)  # Advanced feature
 
     # --- Add main tabs for new features ---
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
         "📝 Code Input & Search", 
         "📊 Code Analytics", 
         "🎯 System Demo", 
-        "⚙️ How It Works"
+        "⚙️ How It Works",
+        "📈 Trend Analysis", # New Tab
+        "🌐 Dependency Graph", # New Tab
+        "🔮 Predictive Insights", # New Tab
+        "🔄 Refactoring Suggestions", # New Tab
+        "🛡️ Security Analysis", # New Tab
+        "📚 Documentation Generator", # New Tab
+        "🧪 Test Coverage", # New Tab
+        "📊 Custom Reports", # New Tab
     ])
 
     with tab1:
@@ -1049,6 +1057,115 @@ class Calculator:
 
     with tab2:
         st.header("📊 Code Analytics & Insights")
+
+    with tab5:
+        st.header("📈 Code Trend Analysis")
+        st.markdown("""
+        *Placeholder for visualizing code quality and complexity trends over time.*
+
+        This section could include graphs showing changes in metrics like:
+        - Average Complexity Score
+        - Maintainability Index
+        - Comment Ratio
+        - Number of High-Complexity Chunks
+
+        Requires storing historical analysis data.
+        """)
+
+    with tab6:
+        st.header("🌐 Interactive Dependency Graph")
+        st.markdown("""
+        *Placeholder for an interactive visualization of code dependencies.*
+
+        This section could display:
+        - Call graphs (which functions call which others)
+        - Import graphs (which modules import which others)
+        - Class inheritance graphs
+
+        Could use libraries like `pyvis` or `networkx` with interactive rendering.
+        """)
+
+    with tab7:
+        st.header("🔮 Predictive Code Insights")
+        st.markdown("""
+        *Placeholder for AI-driven predictive features.*
+
+        Potential insights could include:
+        - Predicting areas of technical debt
+        - Suggesting refactoring opportunities
+        - Identifying potential bugs or vulnerabilities based on code patterns
+        - Estimating development effort for specific code sections
+
+        This would require training more advanced ML models on historical codebase data.
+        """)
+
+    with tab8:
+        st.header("🔄 Refactoring Suggestions")
+        st.markdown("""
+        *Placeholder for automated refactoring suggestions.*
+
+        This section could provide recommendations on:
+        - Simplifying complex functions
+        - Breaking down large classes
+        - Removing duplicate code
+        - Improving variable names
+
+        This would likely involve more advanced static analysis and potentially AI models trained on code refactoring patterns.
+        """)
+
+    with tab9:
+        st.header("🛡️ Security Analysis")
+        st.markdown("""
+        *Placeholder for identifying potential security vulnerabilities in the code.*
+
+        This section could flag issues such as:
+        - SQL injection risks
+        - Cross-site scripting (XSS) possibilities
+        - Use of insecure functions or libraries
+        - Hardcoded credentials
+
+        Requires integration with static application security testing (SAST) tools or custom security analysis logic.
+        """)
+
+    with tab10:
+        st.header("📚 Documentation Generator")
+        st.markdown("""
+        *Placeholder for generating documentation based on code and docstrings.*
+
+        This section could:
+        - Extract information from docstrings, function/class signatures, and comments.
+        - Generate documentation in various formats (e.g., Markdown, Sphinx).
+        - Identify missing or incomplete documentation.
+
+        Could leverage AST analysis and potentially natural language generation techniques.
+        """)
+
+    with tab11:
+        st.header("🧪 Test Coverage Analysis")
+        st.markdown("""
+        *Placeholder for visualizing and analyzing code test coverage.*
+
+        This section could display:
+        - Overall test coverage percentage
+        - Coverage by file, function, or class
+        - Lines of code not covered by tests
+        - Trends in test coverage over time
+
+        Requires integrating with test coverage tools (e.g., `coverage.py`).
+        """)
+
+    with tab12:
+        st.header("📊 Custom Reports")
+        st.markdown("""
+        *Placeholder for generating customizable reports based on code analysis data.*
+
+        This section could allow users to:
+        - Select specific metrics and visualizations
+        - Filter analysis results
+        - Export reports in different formats (e.g., PDF, CSV)
+
+        Requires a flexible reporting engine built on top of the analysis results.
+        """)
         # --- Show analytics if code is processed ---
         if uploaded_file or example_code:
             rag = ComprehensiveRAGSystem()
