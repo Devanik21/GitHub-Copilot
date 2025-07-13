@@ -1074,24 +1074,42 @@ class Calculator:
             st.subheader("Code Quality Metrics")
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Maintainability Index", f"{analysis['quality_metrics']['maintainability_index']:.2f}")
-                st.metric("Comment Ratio", f"{analysis['quality_metrics']['comment_ratio']:.2%}")
+                st.metric("Maintainability Index", 
+                        f"{analysis.get('quality_metrics', {}).get('maintainability_index', 0):.2f}")
+                st.metric("Comment Ratio", 
+                        f"{analysis.get('quality_metrics', {}).get('comment_ratio', 0):.2%}")
             with col2:
-                st.metric("Complexity Score", f"{analysis['quality_metrics']['complexity_score']:.2f}")
-                st.metric("Code Coverage", f"{analysis['quality_metrics']['code_coverage']:.2%}")
+                st.metric("Complexity Score", 
+                        f"{analysis.get('quality_metrics', {}).get('complexity_score', 0):.2f}")
+                st.metric("Code Coverage", 
+                        f"{analysis.get('quality_metrics', {}).get('code_coverage', 0):.2%}")
             with col3:
-                st.metric("Bug Risk", f"{analysis['quality_metrics']['bug_risk']:.2%}")
-                st.metric("Technical Debt", f"{analysis['quality_metrics']['technical_debt']:.2%}")
+                st.metric("Bug Risk", 
+                        f"{analysis.get('quality_metrics', {}).get('bug_risk', 0):.2%}")
+                st.metric("Technical Debt", 
+                        f"{analysis.get('quality_metrics', {}).get('technical_debt', 0):.2%}")
 
             st.subheader("Code Structure Analysis")
-            st.json(analysis["structure_analysis"], expanded=False)
+            if "structure_analysis" in analysis:
+                st.json(analysis["structure_analysis"], expanded=False)
+            else:
+                st.warning("Structure analysis not available")
 
             st.subheader("Dependency Analysis")
-            st.graphviz_chart(analysis["dependency_analysis"]["graphviz"])
+            if "dependency_analysis" in analysis and "graphviz" in analysis["dependency_analysis"]:
+                st.graphviz_chart(analysis["dependency_analysis"]["graphviz"])
+            else:
+                st.warning("Dependency analysis graph not available")
 
             st.subheader("Performance Metrics")
-            perf_df = pd.DataFrame(analysis["performance_metrics"])
-            st.bar_chart(perf_df.set_index("metric"))
+            if "performance_metrics" in analysis and analysis["performance_metrics"]:
+                try:
+                    perf_df = pd.DataFrame(analysis["performance_metrics"])
+                    st.bar_chart(perf_df.set_index("metric"))
+                except Exception as e:
+                    st.warning(f"Could not display performance metrics: {str(e)}")
+            else:
+                st.warning("Performance metrics not available")
 
             st.subheader("Code Evolution Trends")
             if analysis["trend_analysis"]:
