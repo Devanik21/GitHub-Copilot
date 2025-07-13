@@ -1112,9 +1112,15 @@ class Calculator:
                 st.warning("Performance metrics not available")
 
             st.subheader("Code Evolution Trends")
-            if analysis["trend_analysis"]:
-                trend_df = pd.DataFrame(analysis["trend_analysis"])
-                st.line_chart(trend_df)
+            if analysis.get("trend_analysis"):
+                try:
+                    trend_df = pd.DataFrame(analysis["trend_analysis"])
+                    if not trend_df.empty:
+                        st.line_chart(trend_df)
+                    else:
+                        st.info("No trend data available")
+                except Exception as e:
+                    st.warning(f"Could not display trend data: {str(e)}")
             else:
                 st.info("No historical data available for trend analysis")
         else:
@@ -1184,76 +1190,86 @@ class Calculator:
                 return
 
             st.subheader("Call Graph Visualization")
-            if analysis["dependency_analysis"]["call_graph"]:
+            if analysis.get("dependency_analysis", {}).get("call_graph"):
                 call_graph = analysis["dependency_analysis"]["call_graph"]
                 G = nx.DiGraph()
                 
-                # Add nodes and edges
-                for caller, callees in call_graph.items():
-                    G.add_node(caller, type="function")
-                    for callee in callees:
-                        G.add_node(callee, type="function")
-                        G.add_edge(caller, callee)
-                
-                # Create interactive visualization
-                pos = nx.spring_layout(G)
-                edge_x = []
-                edge_y = []
-                for edge in G.edges():
-                    x0, y0 = pos[edge[0]]
-                    x1, y1 = pos[edge[1]]
-                    edge_x += [x0, x1, None]
-                    edge_y += [y0, y1, None]
-                
-                edge_trace = go.Scatter(
-                    x=edge_x, y=edge_y,
-                    line=dict(width=1, color='#888'),
-                    hoverinfo='none',
-                    mode='lines'
-                )
-                
-                node_x = []
-                node_y = []
-                node_text = []
-                node_size = []
-                for node in G.nodes():
-                    x, y = pos[node]
-                    node_x.append(x)
-                    node_y.append(y)
-                    node_text.append(node)
-                    # Node size based on number of connections
-                    node_size.append(len(list(G.neighbors(node))) * 10)
-                
-                node_trace = go.Scatter(
-                    x=node_x, y=node_y,
-                    mode='markers+text',
-                    text=node_text,
-                    textposition="top center",
-                    marker=dict(
-                        size=node_size,
-                        color='rgba(102,126,234,0.8)',
-                        sizemode='area'
-                    ),
-                    hoverinfo='text'
-                )
-                
-                fig = go.Figure(data=[edge_trace, node_trace],
-                              layout=go.Layout(
-                                  showlegend=False,
-                                  hovermode='closest',
-                                  margin=dict(b=20,l=5,r=5,t=40),
-                                  xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                                  yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                                  title="Function Call Graph"
-                              ))
-                st.plotly_chart(fig, use_container_width=True)
+                try:
+                    # Add nodes and edges
+                    for caller, callees in call_graph.items():
+                        if caller:  # Ensure caller is not None or empty
+                            G.add_node(str(caller), type="function")
+                            for callee in callees:
+                                if callee:  # Ensure callee is not None or empty
+                                    G.add_node(str(callee), type="function")
+                                    G.add_edge(str(caller), str(callee))
+                    
+                    # Create interactive visualization
+                    pos = nx.spring_layout(G)
+                    edge_x = []
+                    edge_y = []
+                    for edge in G.edges():
+                        x0, y0 = pos[edge[0]]
+                        x1, y1 = pos[edge[1]]
+                        edge_x += [x0, x1, None]
+                        edge_y += [y0, y1, None]
+                    
+                    edge_trace = go.Scatter(
+                        x=edge_x, y=edge_y,
+                        line=dict(width=1, color='#888'),
+                        hoverinfo='none',
+                        mode='lines'
+                    )
+                    
+                    node_x = []
+                    node_y = []
+                    node_text = []
+                    node_size = []
+                    for node in G.nodes():
+                        x, y = pos[node]
+                        node_x.append(x)
+                        node_y.append(y)
+                        node_text.append(node)
+                        # Node size based on number of connections
+                        node_size.append(len(list(G.neighbors(node))) * 10)
+                    
+                    node_trace = go.Scatter(
+                        x=node_x, y=node_y,
+                        mode='markers+text',
+                        text=node_text,
+                        textposition="top center",
+                        marker=dict(
+                            size=node_size,
+                            color='rgba(102,126,234,0.8)',
+                            sizemode='area'
+                        ),
+                        hoverinfo='text'
+                    )
+                    
+                    fig = go.Figure(data=[edge_trace, node_trace],
+                                  layout=go.Layout(
+                                      showlegend=False,
+                                      hovermode='closest',
+                                      margin=dict(b=20,l=5,r=5,t=40),
+                                      xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                      yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                      title="Function Call Graph"
+                                  ))
+                    st.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    st.warning(f"Could not render call graph: {str(e)}")
             else:
                 st.info("No call relationships detected in the code.")
 
             st.subheader("Import Dependency Tree")
-            if analysis["dependency_analysis"]["import_tree"]:
+            if analysis.get("dependency_analysis", {}).get("import_tree"):
                 import_tree = analysis["dependency_analysis"]["import_tree"]
-                st.json(import_tree, expanded=False)
+                try:
+                    st.json(import_tree, expanded=False)
+                except Exception as e:
+                    st.warning(f"Could not display import tree: {str(e)}")
+            else:
+                st.info("No import dependency data available")
         else:
             st.info("Upload a Python file or use example code to see dependency graphs.")
 
